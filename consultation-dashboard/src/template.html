@@ -100,6 +100,18 @@
       <p class="hint">누적환자 = 주별 환자수의 합(주 간 중복제거 없음). 파란 줄이 이번주입니다.</p>
     </section>
 
+    <section class="card" id="staffCard" hidden>
+      <div class="card-head">
+        <h2>직원별 통계 <small class="hint">(이번주 · 담당자 기준)</small></h2>
+        <div>
+          <span id="copyStatusStaff" class="hint" aria-live="polite"></span>
+          <button type="button" id="copyStaffBtn" class="primary">📋 표 복사</button>
+        </div>
+      </div>
+      <div class="scroll"><table id="staffTable" class="grid"></table></div>
+      <p class="hint">직원별 환자수·상담건수도 같은 규칙입니다(주 안에서 중복제거, YTD 환자수는 주별 합). 한 환자를 여러 직원이 상담했으면 직원별 환자수의 합이 전체 환자수보다 커질 수 있습니다. 담당자가 비어 있는 행은 "(미지정)"으로 묶습니다.</p>
+    </section>
+
     <details class="panel"><summary>계산 규칙 보기</summary>
       <ul class="rules">
         <li>상담건수 = 행 수 (한 행 = 한 상담)</li>

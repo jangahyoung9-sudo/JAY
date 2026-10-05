@@ -42,6 +42,7 @@ def compute(path, meeting):
     datecol = next(c for c in df.columns if "상담일" in c)
     nocol = next((c for c in df.columns if "환자번호" in c), None)
     namecol = next((c for c in df.columns if c == "환자명"), None)
+    staffcol = next((c for c in df.columns if "담당" in c), None)
     W = datetime.strptime(meeting, "%Y-%m-%d").date()
     assert W.weekday() == 2, "회의일은 수요일이어야 함"
     this_s, this_e = W - timedelta(7), W - timedelta(1)
@@ -65,13 +66,20 @@ def compute(path, meeting):
         no = str(r[nocol]).strip() if nocol and pd.notna(r[nocol]) and str(r[nocol]).strip() else ""
         nm = str(r[namecol]).strip() if namecol and pd.notna(r[namecol]) else ""
         if not no: cnt["no_patient_no"] += 1
-        recs.append(dict(week=week_of(d), pid=("N:" + no) if no else "M:" + nm, d=d))
-    t = pd.DataFrame(recs, columns=["week", "pid", "d"])
+        recs.append(dict(week=week_of(d), pid=("N:" + no) if no else "M:" + nm, d=d,
+                         staff=(str(r[staffcol]).strip() if staffcol and pd.notna(r[staffcol]) and str(r[staffcol]).strip() else "(미지정)")))
+    t = pd.DataFrame(recs, columns=["week", "pid", "d", "staff"])
     per = t.groupby("week").agg(patients=("pid", "nunique"), consults=("pid", "size"))   # 주별 중복제거 / 행 수
     kt = week_of(this_e)
     get = lambda k: (int(per.loc[k, "patients"]), int(per.loc[k, "consults"])) if k in per.index else (0, 0)
     ytd_p = int(per.loc[per.index <= kt, "patients"].sum()); ytd_c = int(per.loc[per.index <= kt, "consults"].sum())
-    return {"this": dict(zip(("patients", "consults"), get(kt))), "prev": dict(zip(("patients", "consults"), get(kt - 1))),
+    staff = {}
+    for sname, g in t.groupby("staff"):                                   # 직원별: 같은 규칙을 담당자 단위로
+        sp = g.groupby("week").agg(p=("pid", "nunique"), c=("pid", "size"))
+        sg = lambda k: [int(sp.loc[k, "p"]), int(sp.loc[k, "c"])] if k in sp.index else [0, 0]
+        staff[sname] = {"this": sg(kt), "prev": sg(kt - 1),
+                        "ytd": [int(sp.loc[sp.index <= kt, "p"].sum()), int(sp.loc[sp.index <= kt, "c"].sum())]}
+    return {"staff": staff, "this": dict(zip(("patients", "consults"), get(kt))), "prev": dict(zip(("patients", "consults"), get(kt - 1))),
             "ytd": {"patients": ytd_p, "consults": ytd_c},
             "weeks_nonzero": {str(k): [int(v.patients), int(v.consults)] for k, v in per.iterrows()}, "counts": cnt}
 
@@ -88,6 +96,7 @@ def compare(tag, got, exp):
     for k in ("this", "prev", "ytd"): check(f"{tag} {k}", got[k], exp[k])
     check(f"{tag} 주별표(0 아닌 주)", got["weeks_nonzero"], exp["weeks_nonzero"])
     check(f"{tag} 품질 카운트", got["counts"], exp["counts"])
+    if "staff" in exp: check(f"{tag} 직원별", got["staff"], exp["staff"])
 
 print("=== ① pandas 독립 재계산  vs  answer_key ===")
 for f, spec in KEY["samples"].items():
