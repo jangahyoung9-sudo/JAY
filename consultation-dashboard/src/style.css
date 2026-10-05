@@ -1,0 +1,64 @@
+/* 차분한 병원용 색상: 파랑(증가/강조) + 회색(감소/보조). 빨강은 쓰지 않습니다. */
+:root{
+  --bg:#f3f6f9; --card:#fff; --ink:#1f2a37; --sub:#5b6776; --line:#d5dde6;
+  --blue:#1f6fb5; --blue-soft:#e4effa; --navy:#17375e; --gray:#6b7785; --gray-soft:#eceff3;
+  --warn-bg:#fff6cc; --warn-line:#e0b800;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:15px;line-height:1.5}
+.top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-end;
+  padding:18px 24px;background:#fff;border-bottom:1px solid var(--line)}
+h1{font-size:21px;margin:0}
+h2{font-size:17px;margin:0}
+.privacy{margin:4px 0 0;color:var(--sub);font-size:13px}
+.meeting label{display:block;font-size:13px;color:var(--sub)}
+.meeting-row{display:flex;gap:6px}
+input,select,button{font:inherit}
+input[type=date],input[type=number],select{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+button{padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+button:hover{background:var(--gray-soft)}
+button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+button.primary:hover{background:#185a96}
+.hint{color:var(--sub);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:16px 24px 32px}
+.drop{border:2px dashed #9db4cc;border-radius:12px;background:#fff;text-align:center;padding:42px 16px;cursor:pointer}
+.drop.over,.drop:focus{background:var(--blue-soft);border-color:var(--blue);outline:none}
+.drop-title{font-size:18px;font-weight:600;margin-bottom:6px}
+.filebar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.notice{background:#fff;border:1px solid var(--line);border-left:5px solid var(--gray);padding:10px 14px;border-radius:6px;margin:10px 0}
+.panel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 14px;margin:10px 0}
+.panel summary{cursor:pointer;font-weight:600}
+.map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:10px 0}
+.map-grid label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--sub)}
+.warn{background:var(--warn-bg);border:1px solid var(--warn-line);border-left:6px solid var(--warn-line);
+  padding:10px 14px;border-radius:6px;margin:10px 0;font-weight:500}
+.quality{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 4px}
+.q{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.q span{display:block;font-size:12px;color:var(--sub)} .q b{font-size:20px}
+.q-detail{grid-column:1/-1;font-size:13px;color:var(--sub)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--blue);border-radius:10px;padding:14px 16px}
+.kpi.ytd{border-top-color:var(--navy)}
+.kpi .lab{font-weight:600;color:var(--sub)}
+.kpi .num{font-size:52px;font-weight:700;line-height:1.1;color:var(--navy);font-variant-numeric:tabular-nums}
+.kpi .num small{font-size:18px;font-weight:500;color:var(--sub);margin-left:4px}
+.kpi .per{font-size:12px;color:var(--sub)}
+.delta{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:12px;font-size:13px;font-weight:600}
+.delta small{font-weight:400}
+.delta.up{background:var(--blue-soft);color:#14548f}
+.delta.down{background:var(--gray-soft);color:#4b5563}
+.delta.same{background:var(--gray-soft);color:#4b5563}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.chart-box{position:relative;height:320px}
+.scroll{overflow:auto} .scroll.tall{max-height:460px}
+table{border-collapse:collapse;width:100%}
+table.grid th,table.grid td{border:1px solid #9aa7b5;padding:5px 10px;text-align:center;font-variant-numeric:tabular-nums}
+table.grid th{background:#e3e9f0;position:sticky;top:0}
+table.grid tr.cur td{background:var(--blue-soft);font-weight:700}
+table.plain th,table.plain td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;font-size:13px}
+.rules{margin:8px 0;padding-left:20px;color:var(--sub)}
+.inline{font-size:13px;color:var(--sub)}
+footer{text-align:center;padding:12px}
+@media(max-width:800px){.kpis,.quality{grid-template-columns:repeat(2,1fr)}.kpi .num{font-size:40px}}

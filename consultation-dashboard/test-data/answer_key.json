@@ -1,0 +1,514 @@
+{
+ "_설명": "week=이번주, prev=전주, ytd=1/1~기준주 끝. weeks_nonzero의 주차 0=첫 수요일 이전(Week 0).",
+ "samples": {
+  "sample1_normal.xlsx": {
+   "scenarios": [
+    {
+     "meeting": "2026-10-07",
+     "note": "T1 기획 예시(+T2,T4,T9)",
+     "expect": {
+      "this": {
+       "patients": 3,
+       "consults": 5
+      },
+      "prev": {
+       "patients": 1,
+       "consults": 2
+      },
+      "ytd": {
+       "patients": 5,
+       "consults": 8
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        5
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 4,
+       "counted": 8,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-10-14",
+     "note": "T3 화/수 경계: 10-06과 10-07은 다른 주",
+     "expect": {
+      "this": {
+       "patients": 2,
+       "consults": 2
+      },
+      "prev": {
+       "patients": 3,
+       "consults": 5
+      },
+      "ytd": {
+       "patients": 7,
+       "consults": 10
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        5
+       ],
+       "40": [
+        2,
+        2
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 2,
+       "counted": 10,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-10-21",
+     "expect": {
+      "this": {
+       "patients": 1,
+       "consults": 2
+      },
+      "prev": {
+       "patients": 2,
+       "consults": 2
+      },
+      "ytd": {
+       "patients": 8,
+       "consults": 12
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        5
+       ],
+       "40": [
+        2,
+        2
+       ],
+       "41": [
+        1,
+        2
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 0,
+       "counted": 12,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-01-14",
+     "note": "T4 Week 0가 전주, 12월 제외",
+     "expect": {
+      "this": {
+       "patients": 0,
+       "consults": 0
+      },
+      "prev": {
+       "patients": 1,
+       "consults": 1
+      },
+      "ytd": {
+       "patients": 1,
+       "consults": 1
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 11,
+       "counted": 1,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-01-07",
+     "note": "T4 이번주=12/31~1/6(Week 0)",
+     "expect": {
+      "this": {
+       "patients": 1,
+       "consults": 1
+      },
+      "prev": {
+       "patients": 0,
+       "consults": 0
+      },
+      "ytd": {
+       "patients": 1,
+       "consults": 1
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 11,
+       "counted": 1,
+       "no_patient_no": 0
+      }
+     }
+    }
+   ]
+  },
+  "sample2_irregular.xlsx": {
+   "scenarios": [
+    {
+     "meeting": "2026-10-07",
+     "note": "T1 기획 예시(+T2,T4,T9)",
+     "expect": {
+      "this": {
+       "patients": 3,
+       "consults": 5
+      },
+      "prev": {
+       "patients": 1,
+       "consults": 2
+      },
+      "ytd": {
+       "patients": 5,
+       "consults": 8
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        5
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 4,
+       "counted": 8,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-10-14",
+     "note": "T3 화/수 경계: 10-06과 10-07은 다른 주",
+     "expect": {
+      "this": {
+       "patients": 2,
+       "consults": 2
+      },
+      "prev": {
+       "patients": 3,
+       "consults": 5
+      },
+      "ytd": {
+       "patients": 7,
+       "consults": 10
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        5
+       ],
+       "40": [
+        2,
+        2
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 2,
+       "counted": 10,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-10-21",
+     "expect": {
+      "this": {
+       "patients": 1,
+       "consults": 2
+      },
+      "prev": {
+       "patients": 2,
+       "consults": 2
+      },
+      "ytd": {
+       "patients": 8,
+       "consults": 12
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        5
+       ],
+       "40": [
+        2,
+        2
+       ],
+       "41": [
+        1,
+        2
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 0,
+       "counted": 12,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-01-14",
+     "note": "T4 Week 0가 전주, 12월 제외",
+     "expect": {
+      "this": {
+       "patients": 0,
+       "consults": 0
+      },
+      "prev": {
+       "patients": 1,
+       "consults": 1
+      },
+      "ytd": {
+       "patients": 1,
+       "consults": 1
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 11,
+       "counted": 1,
+       "no_patient_no": 0
+      }
+     }
+    },
+    {
+     "meeting": "2026-01-07",
+     "note": "T4 이번주=12/31~1/6(Week 0)",
+     "expect": {
+      "this": {
+       "patients": 1,
+       "consults": 1
+      },
+      "prev": {
+       "patients": 0,
+       "consults": 0
+      },
+      "ytd": {
+       "patients": 1,
+       "consults": 1
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ]
+      },
+      "counts": {
+       "loaded": 14,
+       "sum": 0,
+       "no_date": 0,
+       "date_error": 0,
+       "prev_year": 2,
+       "after": 11,
+       "counted": 1,
+       "no_patient_no": 0
+      }
+     }
+    }
+   ]
+  },
+  "sample3_edge.xlsx": {
+   "scenarios": [
+    {
+     "meeting": "2026-10-07",
+     "note": "T6 시리얼/T7 합계행/T8 이름기준+경고/T9",
+     "expect": {
+      "this": {
+       "patients": 3,
+       "consults": 3
+      },
+      "prev": {
+       "patients": 1,
+       "consults": 2
+      },
+      "ytd": {
+       "patients": 5,
+       "consults": 6
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        3
+       ]
+      },
+      "counts": {
+       "loaded": 12,
+       "sum": 2,
+       "no_date": 1,
+       "date_error": 1,
+       "prev_year": 1,
+       "after": 1,
+       "counted": 6,
+       "no_patient_no": 6
+      }
+     }
+    },
+    {
+     "meeting": "2026-10-14",
+     "expect": {
+      "this": {
+       "patients": 1,
+       "consults": 1
+      },
+      "prev": {
+       "patients": 3,
+       "consults": 3
+      },
+      "ytd": {
+       "patients": 6,
+       "consults": 7
+      },
+      "weeks_nonzero": {
+       "0": [
+        1,
+        1
+       ],
+       "38": [
+        1,
+        2
+       ],
+       "39": [
+        3,
+        3
+       ],
+       "40": [
+        1,
+        1
+       ]
+      },
+      "counts": {
+       "loaded": 12,
+       "sum": 2,
+       "no_date": 1,
+       "date_error": 1,
+       "prev_year": 1,
+       "after": 0,
+       "counted": 7,
+       "no_patient_no": 7
+      }
+     }
+    }
+   ]
+  }
+ }
+}
