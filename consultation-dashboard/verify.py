@@ -66,9 +66,9 @@ def compute(path, meeting):
         no = str(r[nocol]).strip() if nocol and pd.notna(r[nocol]) and str(r[nocol]).strip() else ""
         nm = str(r[namecol]).strip() if namecol and pd.notna(r[namecol]) else ""
         if not no: cnt["no_patient_no"] += 1
-        recs.append(dict(week=week_of(d), pid=("N:" + no) if no else "M:" + nm, d=d,
+        recs.append(dict(month=d.month, week=week_of(d), pid=("N:" + no) if no else "M:" + nm, d=d,
                          staff=(str(r[staffcol]).strip() if staffcol and pd.notna(r[staffcol]) and str(r[staffcol]).strip() else "(미지정)")))
-    t = pd.DataFrame(recs, columns=["week", "pid", "d", "staff"])
+    t = pd.DataFrame(recs, columns=["month", "week", "pid", "d", "staff"])
     per = t.groupby("week").agg(patients=("pid", "nunique"), consults=("pid", "size"))   # 주별 중복제거 / 행 수
     kt = week_of(this_e)
     get = lambda k: (int(per.loc[k, "patients"]), int(per.loc[k, "consults"])) if k in per.index else (0, 0)
@@ -79,7 +79,9 @@ def compute(path, meeting):
         sg = lambda k: [int(sp.loc[k, "p"]), int(sp.loc[k, "c"])] if k in sp.index else [0, 0]
         staff[sname] = {"this": sg(kt), "prev": sg(kt - 1),
                         "ytd": [int(sp.loc[sp.index <= kt, "p"].sum()), int(sp.loc[sp.index <= kt, "c"].sum())]}
-    return {"staff": staff, "this": dict(zip(("patients", "consults"), get(kt))), "prev": dict(zip(("patients", "consults"), get(kt - 1))),
+    mon = t.groupby("month").agg(p=("pid", "nunique"), c=("pid", "size"))   # 월간: 달력 월 안에서 중복제거
+    months = {str(k): [int(v.p), int(v.c)] for k, v in mon.iterrows()}
+    return {"months": months, "staff": staff, "this": dict(zip(("patients", "consults"), get(kt))), "prev": dict(zip(("patients", "consults"), get(kt - 1))),
             "ytd": {"patients": ytd_p, "consults": ytd_c},
             "weeks_nonzero": {str(k): [int(v.patients), int(v.consults)] for k, v in per.iterrows()}, "counts": cnt}
 
@@ -96,6 +98,7 @@ def compare(tag, got, exp):
     for k in ("this", "prev", "ytd"): check(f"{tag} {k}", got[k], exp[k])
     check(f"{tag} 주별표(0 아닌 주)", got["weeks_nonzero"], exp["weeks_nonzero"])
     check(f"{tag} 품질 카운트", got["counts"], exp["counts"])
+    if "months" in exp: check(f"{tag} 월간", got["months"], exp["months"])
     if "staff" in exp: check(f"{tag} 직원별", got["staff"], exp["staff"])
 
 print("=== ① pandas 독립 재계산  vs  answer_key ===")

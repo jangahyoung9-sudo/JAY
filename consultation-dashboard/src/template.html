@@ -112,6 +112,18 @@
       <p class="hint">직원별 환자수·상담건수도 같은 규칙입니다(주 안에서 중복제거, YTD 환자수는 주별 합). 한 환자를 여러 직원이 상담했으면 직원별 환자수의 합이 전체 환자수보다 커질 수 있습니다. 담당자가 비어 있는 행은 "(미지정)"으로 묶습니다.</p>
     </section>
 
+    <section class="card" id="monthCard">
+      <div class="card-head">
+        <h2>월간 요약 <small class="hint">(1월 ~ 기준주 끝)</small></h2>
+        <div>
+          <span id="copyStatusMonth" class="hint" aria-live="polite"></span>
+          <button type="button" id="copyMonthBtn" class="primary">📋 표 복사</button>
+        </div>
+      </div>
+      <div class="scroll"><table id="monthTable" class="grid"></table></div>
+      <p class="hint">월 환자수 = 그 달(1일~말일) 안에서 중복을 뺀 환자 수, 월 상담건수 = 그 달의 행 수입니다. 마지막 달은 기준주 끝까지만 집계한 "진행 중" 값입니다. 월은 날짜 기준이라 주(수~화)가 달을 걸치면 나뉘어 잡히므로, 월별 환자수를 더한 값은 YTD 환자수(주별 합)와 다릅니다.</p>
+    </section>
+
     <details class="panel"><summary>계산 규칙 보기</summary>
       <ul class="rules">
         <li>상담건수 = 행 수 (한 행 = 한 상담)</li>
@@ -120,6 +132,7 @@
         <li>YTD 상담건수 = 1/1부터 기준주 끝까지의 행 수</li>
         <li>환자 구분: 환자번호 우선, 없으면 환자명 (이 경우 노란 경고)</li>
         <li>회의일(수) 기준 이번주 = 전 주 수~화, 전주 = 그 전 주. 첫 수요일 이전(1/1~)은 Week 0</li>
+        <li>월간 요약: 달력 월(1일~말일) 기준, 월 안에서 환자 중복제거 (YTD와 별개 지표)</li>
         <li>전년도 데이터와 회의일 이후 데이터는 계산에서 제외하고 건수만 표시</li>
       </ul>
     </details>

@@ -213,6 +213,7 @@ function analyze(rows, meetingN) {
   }
   const c = { loaded: rows.length, sum: 0, noDate: 0, dateError: 0, prevYear: 0, after: 0, counted: 0, noPatientNo: 0, noPatientId: 0 };
   const excluded = [];
+  const monthMap = new Map();      // 월(1~12) → {ids, c}  (월간 요약용: 달력 월 기준)
   const staffMap = new Map();      // 담당자 → {주차 → {ids, c}}  (직원별 통계용)
   const why = { sum: '합계/소계 행', noDate: '날짜 없음', dateError: '날짜 해석 실패', prevYear: '전년도', after: '회의일 이후' };
   const skip = (r, key) => { c[key]++; excluded.push({ excelRow: r.excelRow, reason: why[key], dateRaw: r.dateRaw, who: r.pno || r.pname }); };
@@ -226,12 +227,24 @@ function analyze(rows, meetingN) {
     w.consults++;                                              // 상담건수 = 행 수
     if (r.key) w.ids.add(r.key); else c.noPatientId++;         // 주 안에서 중복 제거
     if (!r.pno) c.noPatientNo++;
+    const mo = civilFromDays(r.n).m;
+    if (!monthMap.has(mo)) monthMap.set(mo, { ids: new Set(), c: 0 });
+    const mv = monthMap.get(mo); mv.c++; if (r.key) mv.ids.add(r.key);
     // 직원별: 같은 규칙을 담당자 단위로 적용 (주 안 중복제거, 상담건수=행 수)
     const sn = r.staff || '(미지정)';
     if (!staffMap.has(sn)) staffMap.set(sn, new Map());
     const sw = staffMap.get(sn), wk = weekIdx(r.n);
     if (!sw.has(wk)) sw.set(wk, { ids: new Set(), c: 0 });
     const sc = sw.get(wk); sc.c++; if (r.key) sc.ids.add(r.key);
+  }
+  // 1월 ~ 기준주 끝이 속한 달까지 (마지막 달은 기준주 끝까지만 집계 = 진행 중)
+  const lastM = civilFromDays(thisEnd).m, months = [];
+  let mcum = 0;
+  for (let m = 1; m <= lastM; m++) {
+    const v = monthMap.get(m) || { ids: new Set(), c: 0 };
+    const first = daysFromCivil(Y, m, 1), nextFirst = m === 12 ? daysFromCivil(Y + 1, 1, 1) : daysFromCivil(Y, m + 1, 1);
+    mcum += v.c;
+    months.push({ m, patients: v.ids.size, consults: v.c, cumC: mcum, start: first, end: Math.min(nextFirst - 1, thisEnd), partial: thisEnd < nextFirst - 1 });
   }
   const staff = [...staffMap.entries()].map(([name, sw]) => {
     const g = (k) => (sw.has(k) ? sw.get(k) : { ids: new Set(), c: 0 });
@@ -251,7 +264,7 @@ function analyze(rows, meetingN) {
     prev: { patients: prev.patients, consults: prev.consults },
     ytd: { patients: cur.cumP, consults: cur.cumC },
     prevYtd: { patients: prev.cumP, consults: prev.cumC },
-    counts: c, excluded, staff,
+    counts: c, excluded, staff, months,
     excludedTotal: c.sum + c.noDate + c.dateError + c.prevYear + c.after,
   };
 }
@@ -415,7 +428,7 @@ function render() {
     card('ytd', 'YTD 환자수', R.ytd.patients, '명', '01-01 ~ ' + mdOf(R.thisEnd) + ' (주별 합)', fmtDelta(R.ytd.patients, R.prevYtd.patients, '전주 누계 대비')) +
     card('ytd', 'YTD 상담건수', R.ytd.consults, '건', '01-01 ~ ' + mdOf(R.thisEnd), fmtDelta(R.ytd.consults, R.prevYtd.consults, '전주 누계 대비'));
 
-  renderTable(R); renderChart(R); renderStaff(R);
+  renderTable(R); renderChart(R); renderStaff(R); renderMonths(R);
 }
 
 function shownWeeks(R) {
@@ -429,6 +442,22 @@ function renderTable(R) {
   const ws = shownWeeks(R);
   $('#weekTable').innerHTML = '<thead><tr><th>주차</th><th>기간</th><th>환자수</th><th>상담건수</th><th>누적환자</th><th>누적상담</th></tr></thead><tbody>' +
     ws.map((w) => '<tr' + (w.k === R.kThis ? ' class="cur"' : '') + '><td>' + weekLabel(w) + '</td><td>' + weekPeriod(w) + '</td><td>' + w.patients + '</td><td>' + w.consults + '</td><td>' + w.cumP + '</td><td>' + w.cumC + '</td></tr>').join('') + '</tbody>';
+}
+
+/* --- 월간 요약표 (달력 월 기준) --- */
+function monthTable(R) {
+  const head = ['월', '집계 기간', '환자수', '상담건수', '누적상담건수', '전월 대비(상담)'];
+  const body = R.months.map((x, i) => {
+    const d = i === 0 ? null : x.consults - R.months[i - 1].consults;
+    return [x.m + '월' + (x.partial ? ' (진행 중)' : ''), mdOf(x.start) + ' ~ ' + mdOf(x.end), x.patients, x.consults, x.cumC,
+      d === null ? '' : d === 0 ? '―' : (d > 0 ? '▲ ' : '▼ ') + Math.abs(d)];
+  });
+  return { head, body };
+}
+function renderMonths(R) {
+  const t = monthTable(R);
+  $('#monthTable').innerHTML = '<thead><tr>' + t.head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+    t.body.map((r, i) => '<tr' + (i === t.body.length - 1 ? ' class="cur"' : '') + '>' + r.map((v) => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') + '</tbody>';
 }
 
 /* --- 직원별 통계표 --- */
@@ -476,6 +505,7 @@ function buildCopy(kind) {
   const R = state.result, ws = shownWeeks(R);
   let head, body, hl = (i) => ws[i].k === R.kThis;       // hl: 강조할 줄
   if (kind === 'staff') { const t = staffTable(R); head = t.head; body = t.body; hl = (i) => i === body.length - 1; }
+  else if (kind === 'month') { const t = monthTable(R); head = t.head; body = t.body; hl = (i) => i === body.length - 1; }
   else { head = ['주차', '기간', '환자수', '상담건수', '누적환자', '누적상담']; body = ws.map((w) => [weekLabel(w), weekPeriod(w), w.patients, w.consults, w.cumP, w.cumC]); }
   const cell = 'border:1px solid #000000;padding:4px 8px;text-align:center;';
   let html = '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;border:1px solid #000000;font-family:\'맑은 고딕\',sans-serif;font-size:11pt;">';
@@ -488,7 +518,7 @@ function buildCopy(kind) {
 async function copyTable(kind) {
   if (!state.result) return;
   const { html, text } = buildCopy(kind);
-  const done = (msg) => { const el = $(kind === 'staff' ? '#copyStatusStaff' : '#copyStatus'); el.textContent = msg; setTimeout(() => { el.textContent = ''; }, 3000); };
+  const done = (msg) => { const el = $({ staff: '#copyStatusStaff', month: '#copyStatusMonth' }[kind] || '#copyStatus'); el.textContent = msg; setTimeout(() => { el.textContent = ''; }, 3000); };
   try {   // 1순위: 최신 클립보드 API
     if (!(navigator.clipboard && window.ClipboardItem)) throw new Error('no clipboard api');
     await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
@@ -528,6 +558,7 @@ function bind() {
   $('#nextWeekBtn').addEventListener('click', () => setMeeting(state.meetingN === null ? nearestWednesday(todayN()) + 7 : state.meetingN + 7));
   $('#rangeSelect').addEventListener('change', () => { if (state.result) { renderTable(state.result); renderChart(state.result); } });
   $('#copyBtn').addEventListener('click', () => copyTable('week'));
+  $('#copyMonthBtn').addEventListener('click', () => copyTable('month'));
   $('#copyStaffBtn').addEventListener('click', () => copyTable('staff'));
 }
 
@@ -547,6 +578,7 @@ function analyzeWorkbook(arrayBuffer, meetingISO) {
     this: R.this, prev: R.prev, ytd: R.ytd, weeks_nonzero: weeks,
     counts: { loaded: c.loaded, sum: c.sum, no_date: c.noDate, date_error: c.dateError, prev_year: c.prevYear, after: c.after, counted: c.counted, no_patient_no: c.noPatientNo },
     staff: Object.fromEntries(R.staff.map((x) => [x.name, { this: [x.thisP, x.thisC], prev: [x.prevP, x.prevC], ytd: [x.ytdP, x.ytdC] }])),
+    months: Object.fromEntries(R.months.filter((x) => x.patients || x.consults).map((x) => [x.m, [x.patients, x.consults]])),
     thisRange: [isoOf(R.thisStart), isoOf(R.thisEnd)],
   };
 }
