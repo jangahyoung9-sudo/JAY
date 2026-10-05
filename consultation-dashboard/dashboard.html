@@ -117,6 +117,8 @@ footer{text-align:center;padding:12px}
     </div>
     <p class="hint">* 필수. 환자번호 또는 환자명 중 하나는 꼭 지정해야 합니다.</p>
     <button type="button" id="applyMapBtn" class="primary">이 설정으로 계산</button>
+    <button type="button" id="clearMemBtn">저장해 둔 컬럼 설정 모두 지우기</button>
+    <p class="hint">"이 설정으로 계산"을 누르면 이 엑셀 양식(제목줄 글자 기준)의 설정이 이 PC 브라우저에 저장됩니다. 저장되는 것은 열 제목 글자뿐이며 환자 정보는 저장·전송되지 않습니다.</p>
   </details>
 
   <div id="result" hidden>
@@ -376,6 +378,34 @@ function detectHeader(grid) {
   if (best.row < 0) return { ok: false, row: 0, map: { date: -1, no: -1, name: -1, staff: -1 }, score: 0 };
   return { ok: best.score >= 2 && mappingOk(best.map), row: best.row, map: best.map, score: best.score };
 }
+/* ---- 컬럼 설정 기억: 열 '제목 글자'만 이 PC 브라우저(localStorage)에 저장 (환자 데이터는 저장 안 함) ---- */
+const MEM_KEY = 'consultDash.columnMaps.v1';
+function memLoad() { try { return JSON.parse(localStorage.getItem(MEM_KEY) || '[]'); } catch (e) { return []; } }
+function memSave(list) { try { localStorage.setItem(MEM_KEY, JSON.stringify(list)); return true; } catch (e) { return false; } }
+const sigOf = (row) => (row || []).map(normText).filter(Boolean).join('|');     // 제목줄 지문
+function memFind(grid) {                                  // 저장된 양식과 같은 제목줄이 있으면 그 설정을 돌려줌
+  const list = memLoad();
+  if (!list.length) return null;
+  for (let r = 0; r < Math.min(20, grid.length); r++) {
+    const sig = sigOf(grid[r]);
+    const e = sig.split('|').length >= 2 ? list.find((x) => x.sig === sig) : null;
+    if (!e) continue;
+    const cells = (grid[r] || []).map(normText), map = {};
+    for (const k of ['date', 'no', 'name', 'staff']) map[k] = e.fields[k] ? cells.indexOf(e.fields[k]) : -1;
+    if (mappingOk(map)) return { ok: true, row: r, map, score: 9, remembered: true };
+  }
+  return null;
+}
+function memRemember(grid, headerRow, map) {              // 수동 지정을 저장 (같은 제목줄이면 덮어씀)
+  const header = (grid[headerRow] || []).map(normText), sig = sigOf(grid[headerRow]);
+  if (sig.split('|').length < 2 || !header[map.date]) return false;
+  const fields = {};
+  for (const k of ['date', 'no', 'name', 'staff']) fields[k] = map[k] >= 0 ? header[map[k]] || '' : '';
+  const list = memLoad().filter((x) => x.sig !== sig);
+  list.push({ sig, fields });
+  return memSave(list.slice(-30));
+}
+
 // 워크북 → 시트별 2차원 배열. raw:true 이므로 날짜 셀은 시리얼 숫자로 옵니다.
 function readWorkbook(arrayBuffer) {
   const wb = XLSX.read(arrayBuffer, { type: 'array' });
@@ -386,7 +416,7 @@ function readWorkbook(arrayBuffer) {
   // 헤더 감지에 성공하는 첫 시트를 선택 (없으면 가장 점수 높은 시트)
   let pick = 0, bestScore = -1, found = false;
   sheets.forEach((s, i) => {
-    s.det = detectHeader(s.grid);
+    s.det = memFind(s.grid) || detectHeader(s.grid);   // 기억된 설정이 자동 감지보다 우선
     if (!found && s.det.ok) { pick = i; found = true; }
     else if (!found && s.det.score > bestScore) { pick = i; bestScore = s.det.score; }
   });
@@ -590,7 +620,7 @@ function selectSheet(i) {
   $('#sheetSelect').innerHTML = state.sheets.map((x, j) => '<option value="' + j + '"' + (j === i ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
   state.headerRow = s.det.row; state.map = Object.assign({}, s.det.map);
   renderMapping();
-  if (s.det.ok) { $('#mapPanel').open = false; showMsg(''); recompute(); }
+  if (s.det.ok) { $('#mapPanel').open = false; showMsg(s.det.remembered ? '✓ 저장해 둔 컬럼 설정을 적용했습니다. (제목줄 ' + (s.det.row + 1) + '행)' : ''); recompute(); }
   else {
     $('#result').hidden = true; $('#mapPanel').open = true;
     showMsg('헤더(상담일자/환자번호/환자명 등)를 자동으로 찾지 못했습니다. 아래 "컬럼 지정"에서 직접 골라 주세요.');
@@ -615,7 +645,8 @@ function applyMapping() {
   const map = { date: +$('#mapDate').value, no: +$('#mapNo').value, name: +$('#mapName').value, staff: +$('#mapStaff').value };
   if (!mappingOk(map)) { showMsg('상담일자 열과, 환자번호 또는 환자명 열 중 하나는 꼭 지정해야 합니다.'); return; }
   state.map = map; state.headerRow = Math.max(0, (+$('#headerRowInput').value || 1) - 1);
-  showMsg(''); recompute();
+  recompute();
+  showMsg(memRemember(state.sheets[state.sheetIdx].grid, state.headerRow, state.map) ? '✓ 이 엑셀 양식의 컬럼 설정을 이 PC 브라우저에 기억했습니다. 다음에 같은 양식은 자동으로 적용됩니다.' : '컬럼 설정을 적용했습니다. (이 브라우저에서는 설정을 저장할 수 없습니다)');
 }
 
 /* --- 계산 → 화면 --- */
@@ -798,6 +829,7 @@ function bind() {
   window.addEventListener('drop', (e) => { if (e.dataTransfer && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
   $('#sheetSelect').addEventListener('change', (e) => selectSheet(+e.target.value));
   $('#applyMapBtn').addEventListener('click', applyMapping);
+  $('#clearMemBtn').addEventListener('click', () => { memSave([]); showMsg('저장해 둔 컬럼 설정을 모두 지웠습니다.'); });
   $('#headerRowInput').addEventListener('change', () => {          // 헤더 행 바꾸면 그 행으로 열 이름 다시 인식
     state.headerRow = Math.max(0, (+$('#headerRowInput').value || 1) - 1);
     state.map = mappingForRow(state.sheets[state.sheetIdx].grid[state.headerRow]); renderMapping();

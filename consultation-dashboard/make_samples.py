@@ -77,6 +77,12 @@ ws.cell(4, 2).number_format = "yyyy-mm-dd"
 wb.save(OUT + "sample2_irregular.xlsx")
 S2 = S1   # 같은 내용이므로 정답도 동일
 
+# ---------- 샘플4 : 자동 감지 실패용(영문 제목). 컬럼 매핑 '기억' 테스트에만 사용, 내용은 샘플1과 같음 ----------
+wb = Workbook(); ws = wb.active; ws.title = "log"
+ws.append(["Day", "Pt No", "Pt Name", "Staff"])
+for dt, no, nm, st in rows1: ws.append([D(dt), no, nm, st])
+wb.save(OUT + "sample4_custom_headers.xlsx")
+
 # ---------- 샘플3 : 엣지 (시리얼 날짜, 합계/소계 행, 환자번호 컬럼 없음, 날짜 오류/없음) ----------
 wb = Workbook(); ws = wb.active; ws.title = "Sheet1"
 ws.append(["상담일자", "환자명", "담당자"])
