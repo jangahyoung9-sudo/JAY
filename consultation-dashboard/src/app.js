@@ -297,6 +297,27 @@ function analyze(rows, meetingN) {
   };
 }
 
+/* ---- 중복의심 환자 탐지 (참고용): 날짜가 정상인 모든 행 대상, 합계행/날짜오류 제외 ----
+ *  A 같은 환자번호에 서로 다른 이름 / B 같은 이름에 서로 다른 환자번호 / C 같은 날 같은 환자 2회 이상 */
+function findDupes(rows) {
+  const ok = rows.filter((r) => r.status === 'ok');
+  const where = (list) => list.slice(0, 8).map((r) => (r.file ? r.file + ' / ' : '') + r.excelRow + '행').join(', ') + (list.length > 8 ? ' 외 ' + (list.length - 8) + '행' : '');
+  const out = [];
+  const group = (keyFn) => { const m = new Map(); for (const r of ok) { const k = keyFn(r); if (k === null) continue; if (!m.has(k)) m.set(k, []); m.get(k).push(r); } return m; };
+  for (const [no, list] of group((r) => (r.pno && r.pname ? r.pno : null))) {
+    const names = [...new Set(list.map((r) => r.pname))];
+    if (names.length > 1) out.push({ type: 'A', typeName: '같은 번호·다른 이름', who: no, detail: '이름 ' + names.join(' / '), where: where(list), count: list.length });
+  }
+  for (const [nm, list] of group((r) => (r.pno && r.pname ? r.pname : null))) {
+    const nos = [...new Set(list.map((r) => r.pno))];
+    if (nos.length > 1) out.push({ type: 'B', typeName: '같은 이름·다른 번호', who: nm, detail: '번호 ' + nos.join(' / ') + ' (동명이인이거나 번호가 두 개 발급됐을 수 있음)', where: where(list), count: list.length });
+  }
+  for (const [k, list] of group((r) => (r.key ? r.n + '|' + r.key : null))) {
+    if (list.length > 1) out.push({ type: 'C', typeName: '같은 날 여러 번 상담', who: list[0].pno || list[0].pname, detail: isoOf(list[0].n) + ' 에 ' + list.length + '회', where: where(list), count: list.length });
+  }
+  return out;
+}
+
 /* =====================================================================
  * [5] 내장 자가진단 — 화면을 열 때마다 콘솔에서 돌아가는 간단 테스트(T1~T4, T6, T7, T9)
  * ===================================================================== */
@@ -519,7 +540,7 @@ function render() {
     card('ytd', 'YTD 환자수', R.ytd.patients, '명', '01-01 ~ ' + mdOf(R.thisEnd) + ' (주별 합)', fmtDelta(R.ytd.patients, R.prevYtd.patients, '전주 누계 대비'), state.ly && lyLine(R.ytd.patients, LY.ytd.patients, '명')) +
     card('ytd', 'YTD 상담건수', R.ytd.consults, '건', '01-01 ~ ' + mdOf(R.thisEnd), fmtDelta(R.ytd.consults, R.prevYtd.consults, '전주 누계 대비'), state.ly && lyLine(R.ytd.consults, LY.ytd.consults, '건'));
 
-  renderTable(R); renderChart(R); renderStaff(R); renderMonths(R);
+  renderDupes(); renderTable(R); renderChart(R); renderStaff(R); renderMonths(R);
 }
 
 function shownWeeks(R) {
@@ -533,6 +554,18 @@ function renderTable(R) {
   const ws = shownWeeks(R);
   $('#weekTable').innerHTML = '<thead><tr><th>주차</th><th>기간</th><th>환자수</th><th>상담건수</th><th>누적환자</th><th>누적상담</th></tr></thead><tbody>' +
     ws.map((w) => '<tr' + (w.k === R.kThis ? ' class="cur"' : '') + '><td>' + weekLabel(w) + '</td><td>' + weekPeriod(w) + '</td><td>' + w.patients + '</td><td>' + w.consults + '</td><td>' + w.cumP + '</td><td>' + w.cumC + '</td></tr>').join('') + '</tbody>';
+}
+
+/* --- 중복의심 환자 리포트 --- */
+function renderDupes() {
+  const d = state.dupes = findDupes(state.rows);
+  const n = (t) => d.filter((x) => x.type === t).length;
+  $('#dupeSummary').textContent = '중복 의심 환자 리포트 (' + d.length + '건)';
+  $('#dupeTable').innerHTML = d.length
+    ? '<tr><th>유형</th><th>환자</th><th>내용</th><th>해당 행</th></tr>' + d.slice(0, 300).map((x) => '<tr><td>' + x.typeName + '</td><td>' + esc(x.who) + '</td><td>' + esc(x.detail) + '</td><td>' + esc(x.where) + '</td></tr>').join('') +
+      (d.length > 300 ? '<tr><td colspan="4">… 외 ' + (d.length - 300) + '건 (결과 엑셀 저장에 전체 포함)</td></tr>' : '')
+    : '<tr><td>의심되는 건이 없습니다.</td></tr>';
+  $('#dupeCounts').textContent = '같은 번호·다른 이름 ' + n('A') + '건 · 같은 이름·다른 번호 ' + n('B') + '건 · 같은 날 여러 번 상담 ' + n('C') + '건';
 }
 
 /* --- 월간 요약표 (달력 월 기준) --- */
@@ -648,6 +681,7 @@ function buildResultSheets(R) {
   sheets.push(['주간표', [['주차', '시작일', '종료일', '환자수', '상담건수', '누적환자', '누적상담']].concat(
     R.weeks.map((w) => ['W' + w.k, isoOf(w.start), isoOf(w.end), w.patients, w.consults, w.cumP, w.cumC]))]);
   if (R.staff.length && state.hasStaff) { const t = staffTable(R); sheets.push(['직원별', [t.head].concat(t.body)]); }
+  sheets.push(['중복의심', [['유형', '환자', '내용', '해당 행']].concat((state.dupes || []).map((x) => [x.typeName, x.who, x.detail, x.where]))]);
   const mt = monthTable(R); sheets.push(['월간', [mt.head].concat(mt.body)]);
   sheets.push(['제외된 행', [['엑셀 행', '사유', '원본 날짜', '환자']].concat(R.excluded.map((e) => [(state.files.length > 1 ? e.file + ' / ' : '') + e.excelRow, e.reason, e.dateRaw, e.who]))]);
   return sheets;
@@ -718,6 +752,7 @@ function analyzeFiles(buffers, meetingISO) {          // 여러 파일을 합쳐
     counts: { loaded: c.loaded, sum: c.sum, no_date: c.noDate, date_error: c.dateError, prev_year: c.prevYear, after: c.after, counted: c.counted, no_patient_no: c.noPatientNo },
     staff: Object.fromEntries(R.staff.map((x) => [x.name, { this: [x.thisP, x.thisC], prev: [x.prevP, x.prevC], ytd: [x.ytdP, x.ytdC] }])),
     months: Object.fromEntries(R.months.filter((x) => x.patients || x.consults).map((x) => [x.m, [x.patients, x.consults]])),
+    dupes: (() => { const d = findDupes(rows), c2 = { A: 0, B: 0, C: 0 }; d.forEach((x) => c2[x.type]++); return c2; })(),
     lastYear: LY.counts.counted > 0 ? { this: LY.this, prev: LY.prev, ytd: LY.ytd } : null,
     thisRange: [isoOf(R.thisStart), isoOf(R.thisEnd)],
   };

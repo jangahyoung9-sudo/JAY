@@ -92,6 +92,17 @@ ws.append(["상담일자", "환자번호", "환자명", "담당자"])
 for dt, no, nm, st in rows5: ws.append([D(dt), no, nm, st])
 wb.save(OUT + "sample5_2025.xlsx")
 
+# ---------- 샘플6 : 중복 의심(번호-이름 불일치, 이름-번호 불일치, 같은 날 2회) ----------
+rows6 = [("2026-09-30 10:00", "P100", "김철수", "김상담"), ("2026-10-01 10:00", "P100", "김철순", "김상담"),   # A: 같은 번호, 다른 이름
+         ("2026-10-02 09:00", "P200", "박영희", "김상담"), ("2026-10-03 09:00", "P201", "박영희", "김상담"),   # B: 같은 이름, 다른 번호
+         ("2026-10-02 10:00", "P300", "이서연", "김상담"), ("2026-10-02 16:00", "P300", "이서연", "김상담"),   # C: 같은 날 2회
+         ("2026-10-04 10:00", "P400", "정우성", "김상담")]
+wb = Workbook(); ws = wb.active; ws.title = "상담"
+ws.append(["상담일자", "환자번호", "환자명", "담당자"])
+for dt, no, nm, st in rows6: ws.append([D(dt), no, nm, st])
+wb.save(OUT + "sample6_dupes.xlsx")
+S6 = [{"meeting": "2026-10-07", "expect": dict(ex((5,7),(0,0),(5,7),{"39":[5,7]},7,0,0,0), staff={"김상담":{"this":[5,7],"prev":[0,0],"ytd":[5,7]}}, months={"9":[1,1],"10":[5,6]})}]
+
 # ---------- 샘플3 : 엣지 (시리얼 날짜, 합계/소계 행, 환자번호 컬럼 없음, 날짜 오류/없음) ----------
 wb = Workbook(); ws = wb.active; ws.title = "Sheet1"
 ws.append(["상담일자", "환자명", "담당자"])
@@ -131,6 +142,9 @@ key = {"_설명": "week=이번주, prev=전주, ytd=1/1~기준주 끝. weeks_non
        "multi": MULTI,
        "samples": {"sample1_normal.xlsx": {"scenarios": S1},
                    "sample2_irregular.xlsx": {"scenarios": S2},
-                   "sample3_edge.xlsx": {"scenarios": S3}}}
+                   "sample3_edge.xlsx": {"scenarios": S3},
+                   "sample6_dupes.xlsx": {"scenarios": S6}},
+       "dupes": {"sample1_normal.xlsx": {"A": 0, "B": 0, "C": 1}, "sample2_irregular.xlsx": {"A": 0, "B": 0, "C": 1},
+                 "sample3_edge.xlsx": {"A": 0, "B": 0, "C": 1}, "sample6_dupes.xlsx": {"A": 1, "B": 1, "C": 1}}}
 json.dump(key, open(OUT + "answer_key.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("완료")
