@@ -1,5 +1,98 @@
 {
  "_설명": "week=이번주, prev=전주, ytd=1/1~기준주 끝. weeks_nonzero의 주차 0=첫 수요일 이전(Week 0).",
+ "multi": [
+  {
+   "files": [
+    "sample1_normal.xlsx",
+    "sample5_2025.xlsx"
+   ],
+   "meeting": "2026-10-07",
+   "expect": {
+    "this": {
+     "patients": 3,
+     "consults": 5
+    },
+    "prev": {
+     "patients": 1,
+     "consults": 2
+    },
+    "ytd": {
+     "patients": 5,
+     "consults": 8
+    },
+    "counts": {
+     "loaded": 19,
+     "sum": 0,
+     "no_date": 0,
+     "date_error": 0,
+     "prev_year": 7,
+     "after": 4,
+     "counted": 8,
+     "no_patient_no": 0
+    },
+    "last_year": {
+     "this": {
+      "patients": 3,
+      "consults": 3
+     },
+     "prev": {
+      "patients": 1,
+      "consults": 1
+     },
+     "ytd": {
+      "patients": 5,
+      "consults": 5
+     }
+    }
+   }
+  },
+  {
+   "files": [
+    "sample5_2025.xlsx",
+    "sample1_normal.xlsx"
+   ],
+   "meeting": "2026-10-07",
+   "note": "파일 순서가 바뀌어도 결과 동일",
+   "expect": {
+    "this": {
+     "patients": 3,
+     "consults": 5
+    },
+    "prev": {
+     "patients": 1,
+     "consults": 2
+    },
+    "ytd": {
+     "patients": 5,
+     "consults": 8
+    },
+    "counts": {
+     "loaded": 19,
+     "sum": 0,
+     "no_date": 0,
+     "date_error": 0,
+     "prev_year": 7,
+     "after": 4,
+     "counted": 8,
+     "no_patient_no": 0
+    },
+    "last_year": {
+     "this": {
+      "patients": 3,
+      "consults": 3
+     },
+     "prev": {
+      "patients": 1,
+      "consults": 1
+     },
+     "ytd": {
+      "patients": 5,
+      "consults": 5
+     }
+    }
+   }
+  }
+ ],
  "samples": {
   "sample1_normal.xlsx": {
    "scenarios": [
@@ -86,7 +179,8 @@
         3,
         4
        ]
-      }
+      },
+      "last_year": null
      }
     },
     {
@@ -353,7 +447,8 @@
         3,
         4
        ]
-      }
+      },
+      "last_year": null
      }
     },
     {

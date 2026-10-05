@@ -31,13 +31,15 @@
   <!-- 업로드 영역 -->
   <section id="dropzone" class="drop" tabindex="0" role="button" aria-label="엑셀 파일 올리기">
     <div class="drop-title">📄 상담 엑셀 파일을 여기에 끌어다 놓으세요</div>
-    <div class="hint">또는 이 영역을 클릭해서 파일 선택 (.xlsx / .xls)</div>
-    <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+    <div class="hint">또는 이 영역을 클릭해서 파일 선택 (.xlsx / .xls) · 연도별 파일 여러 개를 함께 올리면 합쳐서 계산합니다</div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" multiple hidden>
   </section>
   <div id="fileBar" class="filebar" hidden>
-    <span>📄 <b id="fileName"></b></span>
+    <span id="fileList" class="files"></span>
     <span id="sheetWrap" hidden>시트 <select id="sheetSelect"></select></span>
-    <button type="button" id="otherFileBtn">다른 파일 열기</button>
+    <button type="button" id="addFileBtn">➕ 파일 추가 (연도별 병합)</button>
+    <button type="button" id="otherFileBtn">새 파일로 바꾸기</button>
+    <input type="file" id="fileInputAdd" accept=".xlsx,.xls" multiple hidden>
   </div>
 
   <div id="msg" class="notice" role="alert" hidden></div>
@@ -45,6 +47,7 @@
   <!-- 컬럼 수동 지정 -->
   <details id="mapPanel" class="panel" hidden>
     <summary>컬럼 지정 (자동 인식이 틀렸을 때 직접 고르기)</summary>
+    <label id="activeFileWrap" class="inline" hidden>컬럼을 지정할 파일 <select id="activeFileSelect"></select></label>
     <div class="map-grid">
       <label>제목줄(헤더)이 있는 행 번호 <input type="number" id="headerRowInput" min="1" max="200" value="1"></label>
       <label>상담일자 열 * <select id="mapDate"></select></label>

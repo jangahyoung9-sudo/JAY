@@ -38,7 +38,7 @@ def ex(this, prev, ytd, weeks, loaded, after, prevyear, nopno, summ=0, nodate=0,
                        "prev_year": prevyear, "after": after, "counted": counted, "no_patient_no": nopno}}
 # 주차: 2026 첫 수요일=01-07 -> 01-07~13이 Week1. 09-24는 Week 38, 09-30은 Week 39, 10-07은 Week 40, 10-14는 Week 41
 S1 = [
- {"meeting": "2026-10-07", "note": "T1 기획 예시(+T2,T4,T9)", "expect": dict(ex((3,5),(1,2),(5,8),{"0":[1,1],"38":[1,2],"39":[3,5]},14,4,2,0), staff={"김상담":{"this":[1,2],"prev":[1,2],"ytd":[2,4]},"박상담":{"this":[2,3],"prev":[0,0],"ytd":[3,4]}}, months={"1":[1,1],"9":[2,3],"10":[3,4]})},
+ {"meeting": "2026-10-07", "note": "T1 기획 예시(+T2,T4,T9)", "expect": dict(ex((3,5),(1,2),(5,8),{"0":[1,1],"38":[1,2],"39":[3,5]},14,4,2,0), staff={"김상담":{"this":[1,2],"prev":[1,2],"ytd":[2,4]},"박상담":{"this":[2,3],"prev":[0,0],"ytd":[3,4]}}, months={"1":[1,1],"9":[2,3],"10":[3,4]}, last_year=None)},
  {"meeting": "2026-10-14", "note": "T3 화/수 경계: 10-06과 10-07은 다른 주", "expect": dict(ex((2,2),(3,5),(7,10),{"0":[1,1],"38":[1,2],"39":[3,5],"40":[2,2]},14,2,2,0), months={"1":[1,1],"9":[2,3],"10":[4,6]})},
  {"meeting": "2026-10-21", "expect": ex((1,2),(2,2),(8,12),{"0":[1,1],"38":[1,2],"39":[3,5],"40":[2,2],"41":[1,2]},14,0,2,0)},
  {"meeting": "2026-01-14", "note": "T4 Week 0가 전주, 12월 제외", "expect": ex((0,0),(1,1),(1,1),{"0":[1,1]},14,11,2,0)},
@@ -83,6 +83,15 @@ ws.append(["Day", "Pt No", "Pt Name", "Staff"])
 for dt, no, nm, st in rows1: ws.append([D(dt), no, nm, st])
 wb.save(OUT + "sample4_custom_headers.xlsx")
 
+# ---------- 샘플5 : 2025년 파일(연도별 병합·전년 동기 비교 테스트용) ----------
+rows5 = [("2025-01-08 10:00", "Q9", "문지후", "김상담"), ("2025-09-26 10:00", "Q1", "배서윤", "김상담"),
+         ("2025-10-01 10:00", "Q1", "배서윤", "김상담"), ("2025-10-03 10:00", "Q2", "노하준", "김상담"),
+         ("2025-10-07 10:00", "Q3", "유채원", "김상담")]
+wb = Workbook(); ws = wb.active; ws.title = "2025"
+ws.append(["상담일자", "환자번호", "환자명", "담당자"])
+for dt, no, nm, st in rows5: ws.append([D(dt), no, nm, st])
+wb.save(OUT + "sample5_2025.xlsx")
+
 # ---------- 샘플3 : 엣지 (시리얼 날짜, 합계/소계 행, 환자번호 컬럼 없음, 날짜 오류/없음) ----------
 wb = Workbook(); ws = wb.active; ws.title = "Sheet1"
 ws.append(["상담일자", "환자명", "담당자"])
@@ -110,7 +119,16 @@ S3 = [
  {"meeting": "2026-10-07", "note": "T6 시리얼/T7 합계행/T8 이름기준+경고/T9", "expect": dict(ex((3,3),(1,2),(5,6),{"0":[1,1],"38":[1,2],"39":[3,3]},12,1,1,6,summ=2,nodate=1,derr=1), staff={"A":{"this":[1,1],"prev":[1,2],"ytd":[3,4]},"B":{"this":[2,2],"prev":[0,0],"ytd":[2,2]}}, months={"1":[1,1],"9":[1,2],"10":[3,3]})},
  {"meeting": "2026-10-14", "expect": ex((1,1),(3,3),(6,7),{"0":[1,1],"38":[1,2],"39":[3,3],"40":[1,1]},12,0,1,7,summ=2,nodate=1,derr=1)},
 ]
+# 병합 시나리오: 2026 파일 + 2025 파일. 2026 숫자는 그대로, 전년 동기(52주 전 = 2025-10-08 회의 기준)는 이번주 3/3, 전주 1/1, YTD 5/5
+MULTI = [{"files": ["sample1_normal.xlsx", "sample5_2025.xlsx"], "meeting": "2026-10-07",
+          "expect": {"this": {"patients": 3, "consults": 5}, "prev": {"patients": 1, "consults": 2}, "ytd": {"patients": 5, "consults": 8},
+                     "counts": {"loaded": 19, "sum": 0, "no_date": 0, "date_error": 0, "prev_year": 7, "after": 4, "counted": 8, "no_patient_no": 0},
+                     "last_year": {"this": {"patients": 3, "consults": 3}, "prev": {"patients": 1, "consults": 1}, "ytd": {"patients": 5, "consults": 5}}}},
+         {"files": ["sample5_2025.xlsx", "sample1_normal.xlsx"], "meeting": "2026-10-07", "note": "파일 순서가 바뀌어도 결과 동일",
+          "expect": None}]
+MULTI[1]["expect"] = MULTI[0]["expect"]
 key = {"_설명": "week=이번주, prev=전주, ytd=1/1~기준주 끝. weeks_nonzero의 주차 0=첫 수요일 이전(Week 0).",
+       "multi": MULTI,
        "samples": {"sample1_normal.xlsx": {"scenarios": S1},
                    "sample2_irregular.xlsx": {"scenarios": S2},
                    "sample3_edge.xlsx": {"scenarios": S3}}}

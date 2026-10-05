@@ -37,8 +37,9 @@ def load(path):
                 return df.dropna(how="all")
     raise RuntimeError("헤더를 찾지 못함: " + str(path))
 
-def compute(path, meeting):
-    df = load(path)
+def compute(path, meeting, _ly=True):
+    paths = path if isinstance(path, (list, tuple)) else [path]
+    df = pd.concat([load(p) for p in paths], ignore_index=True)
     datecol = next(c for c in df.columns if "상담일" in c)
     nocol = next((c for c in df.columns if "환자번호" in c), None)
     namecol = next((c for c in df.columns if c == "환자명"), None)
@@ -81,7 +82,11 @@ def compute(path, meeting):
                         "ytd": [int(sp.loc[sp.index <= kt, "p"].sum()), int(sp.loc[sp.index <= kt, "c"].sum())]}
     mon = t.groupby("month").agg(p=("pid", "nunique"), c=("pid", "size"))   # 월간: 달력 월 안에서 중복제거
     months = {str(k): [int(v.p), int(v.c)] for k, v in mon.iterrows()}
-    return {"months": months, "staff": staff, "this": dict(zip(("patients", "consults"), get(kt))), "prev": dict(zip(("patients", "consults"), get(kt - 1))),
+    last_year = None
+    if _ly:                                                   # 전년 동기 = 같은 계산을 52주(364일) 전 회의일로
+        r = compute(path, str(W - timedelta(364)), _ly=False)
+        if r["counts"]["counted"] > 0: last_year = {k2: r[k2] for k2 in ("this", "prev", "ytd")}
+    return {"last_year": last_year, "months": months, "staff": staff, "this": dict(zip(("patients", "consults"), get(kt))), "prev": dict(zip(("patients", "consults"), get(kt - 1))),
             "ytd": {"patients": ytd_p, "consults": ytd_c},
             "weeks_nonzero": {str(k): [int(v.patients), int(v.consults)] for k, v in per.iterrows()}, "counts": cnt}
 
@@ -96,8 +101,9 @@ def check(label, got, want):
 
 def compare(tag, got, exp):
     for k in ("this", "prev", "ytd"): check(f"{tag} {k}", got[k], exp[k])
-    check(f"{tag} 주별표(0 아닌 주)", got["weeks_nonzero"], exp["weeks_nonzero"])
-    check(f"{tag} 품질 카운트", got["counts"], exp["counts"])
+    if "weeks_nonzero" in exp: check(f"{tag} 주별표(0 아닌 주)", got["weeks_nonzero"], exp["weeks_nonzero"])
+    if "counts" in exp: check(f"{tag} 품질 카운트", got["counts"], exp["counts"])
+    if "last_year" in exp: check(f"{tag} 전년 동기", got.get("last_year", got.get("lastYear")), exp["last_year"])
     if "months" in exp: check(f"{tag} 월간", got["months"], exp["months"])
     if "staff" in exp: check(f"{tag} 직원별", got["staff"], exp["staff"])
 
@@ -106,6 +112,10 @@ for f, spec in KEY["samples"].items():
     print(f"[{f}]")
     for sc in spec["scenarios"]:
         compare(f"회의일 {sc['meeting']}", compute(ROOT / "test-data" / f, sc["meeting"]), sc["expect"])
+
+print("[병합: 파일 여러 개]")
+for sc in KEY["multi"]:
+    compare("병합 " + "+".join(sc["files"]), compute([ROOT / "test-data" / f for f in sc["files"]], sc["meeting"]), sc["expect"])
 
 print("\n=== ② dashboard.html (헤드리스 브라우저, 인터넷 차단)  vs  answer_key ===")
 try:
@@ -146,12 +156,31 @@ if sync_playwright:
         pdf = page.pdf(prefer_css_page_size=True, print_background=True)
         check("PDF 생성(%PDF, 내용 있음)", pdf[:5] == b"%PDF-" and len(pdf) > 20000, True)
         page.emulate_media(media="screen")
+        # --- 다중 파일 병합(Phase 3): API로 값 비교 + 화면에서 '파일 추가' 후 전년 동기 표시 ---
+        print("[병합: 파일 여러 개]")
+        for sc in KEY["multi"]:
+            bs = [base64.b64encode((ROOT / "test-data" / f).read_bytes()).decode() for f in sc["files"]]
+            got = page.evaluate("""([bs, m]) => { const bufs = bs.map((b64) => { const bin = atob(b64); const u = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; });
+                return window.DashboardAPI.analyzeFiles(bufs, m); }""", [bs, sc["meeting"]])
+            compare("병합(브라우저) " + "+".join(sc["files"]), got, sc["expect"])
+        page.set_input_files("#fileInput", str(ROOT / "test-data" / "sample1_normal.xlsx")); page.fill("#meetingDate", "2026-10-07"); page.dispatch_event("#meetingDate", "change")
+        check("병합 화면① 파일 1개면 전년 동기 줄 없음", page.locator(".kpi .ly").count(), 0)
+        page.set_input_files("#fileInputAdd", str(ROOT / "test-data" / "sample5_2025.xlsx"))
+        check("병합 화면② 파일 추가 후 2026 KPI 그대로(3·5·5·8)", page.eval_on_selector_all(".kpi .num", "els => els.map(e => parseInt(e.textContent))"), [3, 5, 5, 8])
+        check("병합 화면③ 전년 동기 값 표시(3명·3건·5명·5건)", page.eval_on_selector_all(".kpi .ly", "els => els.map(e => e.textContent.match(/전년 동기 (\\d+)/)[1])"), ["3", "3", "5", "5"])
+        check("병합 화면④ 파일 칩 2개", page.locator("#fileList .chip").count(), 2)
+        page.set_input_files("#fileInputAdd", str(ROOT / "test-data" / "sample2_irregular.xlsx"))
+        check("병합 화면⑤ 날짜 겹치는 파일 → 경고", "겹칩니다" in page.inner_text("#warnBanner"), True)
+        page.click("#fileList .chip:last-child .x")
+        check("병합 화면⑥ ✕로 파일 빼기", page.locator("#fileList .chip").count(), 2)
         # --- 결과 엑셀 다운로드(Phase 3): 받은 파일을 openpyxl로 열어 정답지와 비교 ---
         import openpyxl, tempfile
         with page.expect_download() as dl: page.click("#downloadBtn")
         out = pathlib.Path(tempfile.gettempdir()) / "verify_result.xlsx"; dl.value.save_as(out)
         wbx = openpyxl.load_workbook(out, data_only=True)
         rows = {r[0]: r[1:] for r in wbx["요약"].iter_rows(values_only=True) if r and r[0]}
+        check("엑셀 저장: 전년 동기 줄(3/3·YTD 5/5)", [list(rows["전년 동기 환자수"][:1]) + [rows["전년 동기 환자수"][3]], list(rows["전년 동기 상담건수"][:1]) + [rows["전년 동기 상담건수"][3]]], [[3, 5], [3, 5]])
         e0 = KEY["samples"]["sample1_normal.xlsx"]["scenarios"][0]["expect"]
         d = lambda k: e0["this"][k] - e0["prev"][k]
         check("엑셀 저장: 요약 시트 이번주·전주·증감", [list(rows["환자수"][:3]), list(rows["상담건수"][:3])],
