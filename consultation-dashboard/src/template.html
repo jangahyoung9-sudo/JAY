@@ -54,6 +54,7 @@
       <label>환자번호 열 <select id="mapNo"></select></label>
       <label>환자명 열 <select id="mapName"></select></label>
       <label>담당자 열 <select id="mapStaff"></select></label>
+      <label>상담유형 열 <select id="mapType"></select></label>
     </div>
     <p class="hint">* 필수. 환자번호 또는 환자명 중 하나는 꼭 지정해야 합니다.</p>
     <button type="button" id="applyMapBtn" class="primary">이 설정으로 계산</button>
@@ -124,6 +125,18 @@
       </div>
       <div class="scroll"><table id="staffTable" class="grid"></table></div>
       <p class="hint">직원별 환자수·상담건수도 같은 규칙입니다(주 안에서 중복제거, YTD 환자수는 주별 합). 한 환자를 여러 직원이 상담했으면 직원별 환자수의 합이 전체 환자수보다 커질 수 있습니다. 담당자가 비어 있는 행은 "(미지정)"으로 묶습니다.</p>
+    </section>
+
+    <section class="card" id="typeCard" hidden>
+      <div class="card-head">
+        <h2>상담유형별 통계 <small class="hint">(이번주 · 상담유형 기준)</small></h2>
+        <div>
+          <span id="copyStatusType" class="hint" aria-live="polite"></span>
+          <button type="button" id="copyTypeBtn" class="primary">📋 표 복사</button>
+        </div>
+      </div>
+      <div class="scroll"><table id="typeTable" class="grid"></table></div>
+      <p class="hint">직원별 통계와 같은 규칙입니다(주 안에서 중복제거, YTD 환자수는 주별 합). 한 환자가 여러 유형으로 상담했으면 유형별 환자수의 합이 전체 환자수보다 커질 수 있습니다. 유형이 비어 있는 행은 "(미분류)"로 묶습니다.</p>
     </section>
 
     <section class="card" id="monthCard">

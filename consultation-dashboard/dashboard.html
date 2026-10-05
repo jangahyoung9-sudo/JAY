@@ -144,6 +144,7 @@ footer{text-align:center;padding:12px}
       <label>환자번호 열 <select id="mapNo"></select></label>
       <label>환자명 열 <select id="mapName"></select></label>
       <label>담당자 열 <select id="mapStaff"></select></label>
+      <label>상담유형 열 <select id="mapType"></select></label>
     </div>
     <p class="hint">* 필수. 환자번호 또는 환자명 중 하나는 꼭 지정해야 합니다.</p>
     <button type="button" id="applyMapBtn" class="primary">이 설정으로 계산</button>
@@ -214,6 +215,18 @@ footer{text-align:center;padding:12px}
       </div>
       <div class="scroll"><table id="staffTable" class="grid"></table></div>
       <p class="hint">직원별 환자수·상담건수도 같은 규칙입니다(주 안에서 중복제거, YTD 환자수는 주별 합). 한 환자를 여러 직원이 상담했으면 직원별 환자수의 합이 전체 환자수보다 커질 수 있습니다. 담당자가 비어 있는 행은 "(미지정)"으로 묶습니다.</p>
+    </section>
+
+    <section class="card" id="typeCard" hidden>
+      <div class="card-head">
+        <h2>상담유형별 통계 <small class="hint">(이번주 · 상담유형 기준)</small></h2>
+        <div>
+          <span id="copyStatusType" class="hint" aria-live="polite"></span>
+          <button type="button" id="copyTypeBtn" class="primary">📋 표 복사</button>
+        </div>
+      </div>
+      <div class="scroll"><table id="typeTable" class="grid"></table></div>
+      <p class="hint">직원별 통계와 같은 규칙입니다(주 안에서 중복제거, YTD 환자수는 주별 합). 한 환자가 여러 유형으로 상담했으면 유형별 환자수의 합이 전체 환자수보다 커질 수 있습니다. 유형이 비어 있는 행은 "(미분류)"로 묶습니다.</p>
     </section>
 
     <section class="card" id="monthCard">
@@ -387,6 +400,7 @@ const HEADER_RULES = [
   ['no',    /(환자|차트|등록|병록|진료)(번호|no\.?|id|코드)/],
   ['date',  /상담(일자|일시|일|날짜)|일자|날짜|내원일|방문일|^date$/],
   ['name',  /환자명|환자이름|환자성명|^환자$|성명|^이름$/],
+  ['type',  /상담(유형|구분|종류|분류)|^(유형|구분|분류|종류)$/],
   ['staff', /담당|상담자|상담사|상담원|직원|작성자/],
 ];
 function classifyHeader(cell) {
@@ -397,7 +411,7 @@ function classifyHeader(cell) {
 }
 // 한 행을 헤더로 가정했을 때의 열 매핑 (없으면 -1)
 function mappingForRow(row) {
-  const map = { date: -1, no: -1, name: -1, staff: -1 };
+  const map = { date: -1, no: -1, name: -1, staff: -1, type: -1 };
   (row || []).forEach((cell, i) => {
     const k = classifyHeader(cell);
     if (k && map[k] < 0) map[k] = i;
@@ -413,7 +427,7 @@ function detectHeader(grid) {
     const score = Object.values(map).filter((x) => x >= 0).length;
     if (score > best.score) best = { row: r, score, map };
   }
-  if (best.row < 0) return { ok: false, row: 0, map: { date: -1, no: -1, name: -1, staff: -1 }, score: 0 };
+  if (best.row < 0) return { ok: false, row: 0, map: { date: -1, no: -1, name: -1, staff: -1, type: -1 }, score: 0 };
   return { ok: best.score >= 2 && mappingOk(best.map), row: best.row, map: best.map, score: best.score };
 }
 /* ---- 컬럼 설정 기억: 열 '제목 글자'만 이 PC 브라우저(localStorage)에 저장 (환자 데이터는 저장 안 함) ---- */
@@ -429,7 +443,7 @@ function memFind(grid) {                                  // 저장된 양식과
     const e = sig.split('|').length >= 2 ? list.find((x) => x.sig === sig) : null;
     if (!e) continue;
     const cells = (grid[r] || []).map(normText), map = {};
-    for (const k of ['date', 'no', 'name', 'staff']) map[k] = e.fields[k] ? cells.indexOf(e.fields[k]) : -1;
+    for (const k of ['date', 'no', 'name', 'staff', 'type']) map[k] = e.fields[k] ? cells.indexOf(e.fields[k]) : -1;
     if (mappingOk(map)) return { ok: true, row: r, map, score: 9, remembered: true };
   }
   return null;
@@ -438,7 +452,7 @@ function memRemember(grid, headerRow, map) {              // 수동 지정을 �
   const header = (grid[headerRow] || []).map(normText), sig = sigOf(grid[headerRow]);
   if (sig.split('|').length < 2 || !header[map.date]) return false;
   const fields = {};
-  for (const k of ['date', 'no', 'name', 'staff']) fields[k] = map[k] >= 0 ? header[map[k]] || '' : '';
+  for (const k of ['date', 'no', 'name', 'staff', 'type']) fields[k] = map[k] >= 0 ? header[map[k]] || '' : '';
   const list = memLoad().filter((x) => x.sig !== sig);
   list.push({ sig, fields });
   return memSave(list.slice(-30));
@@ -491,6 +505,7 @@ function prepareRows(grid, headerRow, map) {
     const row = {
       excelRow: r + 1, dateRaw: dateText(dv), pno, pname,
       staff: map.staff >= 0 ? idText(cells[map.staff]) : '',
+      type: map.type >= 0 ? idText(cells[map.type]) : '',
       n: null, status: 'ok',
       // 환자 식별자: 환자번호 우선 → 없으면 환자명. 접두사로 서로 섞이지 않게 함
       key: pno ? 'N:' + pno : (pname ? 'M:' + pname : null),
@@ -513,6 +528,12 @@ function prepareRows(grid, headerRow, map) {
  *    (첫 수요일 주를 'Week 1'로 표시합니다. 기획의 floor 식은 0부터 시작하지만,
  *     Week 0을 '첫 수요일 이전'으로 따로 쓰므로 겹치지 않게 +1 했습니다.)
  * ===================================================================== */
+function addToGroup(mp, name, wk, r) {
+  if (!mp.has(name)) mp.set(name, new Map());
+  const sw = mp.get(name);
+  if (!sw.has(wk)) sw.set(wk, { ids: new Set(), c: 0 });
+  const g = sw.get(wk); g.c++; if (r.key) g.ids.add(r.key);
+}
 function analyze(rows, meetingN) {
   const thisEnd = meetingN - 1, thisStart = meetingN - 7;
   const Y = civilFromDays(thisEnd).y;                        // 기준 연도 = 이번주 마지막 날의 연도
@@ -531,7 +552,7 @@ function analyze(rows, meetingN) {
   const c = { loaded: rows.length, sum: 0, noDate: 0, dateError: 0, prevYear: 0, after: 0, counted: 0, noPatientNo: 0, noPatientId: 0 };
   const excluded = [];
   const monthMap = new Map();      // 월(1~12) → {ids, c}  (월간 요약용: 달력 월 기준)
-  const staffMap = new Map();      // 담당자 → {주차 → {ids, c}}  (직원별 통계용)
+  const staffMap = new Map(), typeMap = new Map();   // 담당자·상담유형 → {주차 → {ids, c}}  (그룹별 통계용)
   const why = { sum: '합계/소계 행', noDate: '날짜 없음', dateError: '날짜 해석 실패', prevYear: '전년도', after: '회의일 이후' };
   const skip = (r, key) => { c[key]++; excluded.push({ file: r.file, excelRow: r.excelRow, reason: why[key], dateRaw: r.dateRaw, who: r.pno || r.pname }); };
 
@@ -547,12 +568,9 @@ function analyze(rows, meetingN) {
     const mo = civilFromDays(r.n).m;
     if (!monthMap.has(mo)) monthMap.set(mo, { ids: new Set(), c: 0 });
     const mv = monthMap.get(mo); mv.c++; if (r.key) mv.ids.add(r.key);
-    // 직원별: 같은 규칙을 담당자 단위로 적용 (주 안 중복제거, 상담건수=행 수)
-    const sn = r.staff || '(미지정)';
-    if (!staffMap.has(sn)) staffMap.set(sn, new Map());
-    const sw = staffMap.get(sn), wk = weekIdx(r.n);
-    if (!sw.has(wk)) sw.set(wk, { ids: new Set(), c: 0 });
-    const sc = sw.get(wk); sc.c++; if (r.key) sc.ids.add(r.key);
+    // 직원별·상담유형별: 같은 규칙을 그룹 단위로 적용 (주 안 중복제거, 상담건수=행 수)
+    addToGroup(staffMap, r.staff || '(미지정)', weekIdx(r.n), r);
+    addToGroup(typeMap, r.type || '(미분류)', weekIdx(r.n), r);
   }
   // 1월 ~ 기준주 끝이 속한 달까지 (마지막 달은 기준주 끝까지만 집계 = 진행 중)
   const lastM = civilFromDays(thisEnd).m, months = [];
@@ -563,13 +581,14 @@ function analyze(rows, meetingN) {
     mcum += v.c;
     months.push({ m, patients: v.ids.size, consults: v.c, cumC: mcum, start: first, end: Math.min(nextFirst - 1, thisEnd), partial: thisEnd < nextFirst - 1 });
   }
-  const staff = [...staffMap.entries()].map(([name, sw]) => {
+  const groupStats = (mp) => [...mp.entries()].map(([name, sw]) => {
     const g = (k) => (sw.has(k) ? sw.get(k) : { ids: new Set(), c: 0 });
     const o = { name, thisP: g(kThis).ids.size, thisC: g(kThis).c, prevP: 0, prevC: 0, ytdP: 0, ytdC: 0 };
     if (kThis - 1 >= kMin) { o.prevP = g(kThis - 1).ids.size; o.prevC = g(kThis - 1).c; }
     for (const [k, v] of sw) if (k <= kThis) { o.ytdP += v.ids.size; o.ytdC += v.c; }   // YTD 환자 = 주별 환자수의 합
     return o;
   }).sort((a, b) => b.thisC - a.thisC || b.ytdC - a.ytdC || a.name.localeCompare(b.name, 'ko'));
+  const staff = groupStats(staffMap), types = groupStats(typeMap);
   let cp = 0, cc = 0;
   for (const w of weeks) { w.patients = w.ids.size; cp += w.patients; cc += w.consults; w.cumP = cp; w.cumC = cc; delete w.ids; }
   const zero = { patients: 0, consults: 0, cumP: 0, cumC: 0 };
@@ -581,7 +600,7 @@ function analyze(rows, meetingN) {
     prev: { patients: prev.patients, consults: prev.consults },
     ytd: { patients: cur.cumP, consults: cur.cumC },
     prevYtd: { patients: prev.cumP, consults: prev.cumC },
-    counts: c, excluded, staff, months,
+    counts: c, excluded, staff, types, months,
     excludedTotal: c.sum + c.noDate + c.dateError + c.prevYear + c.after,
   };
 }
@@ -659,6 +678,8 @@ const readFileAsBuffer = (file) => new Promise((res, rej) => {
   fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error('파일 읽기 오류'));
   fr.readAsArrayBuffer(file);
 });
+let loadCount = 0;      // 파일 처리가 끝날 때마다 1씩 증가 (자동 검증이 '처리 완료'를 기다리는 신호)
+const markLoaded = () => { document.documentElement.dataset.loads = String(++loadCount); };
 async function handleFiles(fileList, append) {
   const list = Array.from(fileList || []);
   if (!list.length) return;
@@ -676,6 +697,7 @@ async function handleFiles(fileList, append) {
     $('#dropzone').hidden = true; $('#fileBar').hidden = false;
     refresh();
   } catch (e) { console.error(e); showMsg('파일을 읽지 못했습니다. 엑셀에서 열리는 파일인지 확인해 주세요. (' + e.message + ')'); }
+  markLoaded();
 }
 function removeFile(i) {
   state.files.splice(i, 1);
@@ -728,13 +750,13 @@ function renderMapping() {
   for (let r = 0; r < Math.min(grid.length, 50); r++) width = Math.max(width, (grid[r] || []).length);
   const opts = ['<option value="-1">(사용 안 함)</option>'];
   for (let i = 0; i < width; i++) opts.push('<option value="' + i + '">' + colLetter(i) + '열 · ' + esc(header[i] === null || header[i] === undefined ? '(빈 제목)' : header[i]) + '</option>');
-  [['#mapDate', 'date'], ['#mapNo', 'no'], ['#mapName', 'name'], ['#mapStaff', 'staff']].forEach(([sel, k]) => {
+  [['#mapDate', 'date'], ['#mapNo', 'no'], ['#mapName', 'name'], ['#mapStaff', 'staff'], ['#mapType', 'type']].forEach(([sel, k]) => {
     $(sel).innerHTML = opts.join(''); $(sel).value = String(f.map[k]);
   });
   $('#headerRowInput').value = f.headerRow + 1;
 }
 function applyMapping() {
-  const map = { date: +$('#mapDate').value, no: +$('#mapNo').value, name: +$('#mapName').value, staff: +$('#mapStaff').value };
+  const map = { date: +$('#mapDate').value, no: +$('#mapNo').value, name: +$('#mapName').value, staff: +$('#mapStaff').value, type: +$('#mapType').value };
   if (!mappingOk(map)) { showMsg('상담일자 열과, 환자번호 또는 환자명 열 중 하나는 꼭 지정해야 합니다.'); return; }
   const f = af();
   f.map = map; f.headerRow = Math.max(0, (+$('#headerRowInput').value || 1) - 1); f.ok = true; f.remembered = false;
@@ -829,7 +851,7 @@ function render() {
     card('ytd', 'YTD 환자수', R.ytd.patients, '명', '01-01 ~ ' + mdOf(R.thisEnd) + ' (주별 합)', fmtDelta(R.ytd.patients, R.prevYtd.patients, '전주 누계 대비'), state.ly && lyLine(R.ytd.patients, LY.ytd.patients, '명')) +
     card('ytd', 'YTD 상담건수', R.ytd.consults, '건', '01-01 ~ ' + mdOf(R.thisEnd), fmtDelta(R.ytd.consults, R.prevYtd.consults, '전주 누계 대비'), state.ly && lyLine(R.ytd.consults, LY.ytd.consults, '건'));
 
-  renderDupes(); renderTable(R); renderChart(R); renderStaff(R); renderMonths(R);
+  renderDupes(); renderTable(R); renderChart(R); renderStaff(R); renderTypes(R); renderMonths(R);
 }
 
 function shownWeeks(R) {
@@ -873,15 +895,17 @@ function renderMonths(R) {
     t.body.map((r, i) => '<tr' + (i === t.body.length - 1 ? ' class="cur"' : '') + '>' + r.map((v) => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') + '</tbody>';
 }
 
-/* --- 직원별 통계표 --- */
-function staffTable(R) {
-  const head = ['담당자', '주간 환자수', '주간 상담건수', '전주 상담건수', '전주 대비', 'YTD 환자수', 'YTD 상담건수'];
+/* --- 직원별·상담유형별 통계표 (같은 형식) --- */
+function groupTable(list, first) {
+  const head = [first, '주간 환자수', '주간 상담건수', '전주 상담건수', '전주 대비', 'YTD 환자수', 'YTD 상담건수'];
   const chg = (cur, prev) => { const d = cur - prev; return d === 0 ? '―' : (d > 0 ? '▲ ' : '▼ ') + Math.abs(d); };
-  const body = R.staff.map((x) => [x.name, x.thisP, x.thisC, x.prevC, chg(x.thisC, x.prevC), x.ytdP, x.ytdC]);
-  const sum = (f) => R.staff.reduce((a, x) => a + x[f], 0);
-  body.push(['합계(직원별 합)', sum('thisP'), sum('thisC'), sum('prevC'), chg(sum('thisC'), sum('prevC')), sum('ytdP'), sum('ytdC')]);
+  const body = list.map((x) => [x.name, x.thisP, x.thisC, x.prevC, chg(x.thisC, x.prevC), x.ytdP, x.ytdC]);
+  const sum = (f) => list.reduce((a, x) => a + x[f], 0);
+  body.push(['합계(' + (first === '담당자' ? '직원별' : '유형별') + ' 합)', sum('thisP'), sum('thisC'), sum('prevC'), chg(sum('thisC'), sum('prevC')), sum('ytdP'), sum('ytdC')]);
   return { head, body };
 }
+const staffTable = (R) => groupTable(R.staff, '담당자');
+const typeTable = (R) => groupTable(R.types, '상담유형');
 function renderStaff(R) {
   const show = state.files.some((f) => f.map.staff >= 0) && R.staff.length > 0;
   state.hasStaff = show;
@@ -889,6 +913,16 @@ function renderStaff(R) {
   if (!show) return;
   const t = staffTable(R);
   $('#staffTable').innerHTML = '<thead><tr>' + t.head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+    t.body.map((r, i) => '<tr' + (i === t.body.length - 1 ? ' class="cur"' : '') + '>' + r.map((v) => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') + '</tbody>';
+}
+
+function renderTypes(R) {
+  const show = state.files.some((f) => f.map.type >= 0) && R.types.length > 0;
+  state.hasType = show;
+  $('#typeCard').hidden = !show;
+  if (!show) return;
+  const t = typeTable(R);
+  $('#typeTable').innerHTML = '<thead><tr>' + t.head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
     t.body.map((r, i) => '<tr' + (i === t.body.length - 1 ? ' class="cur"' : '') + '>' + r.map((v) => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') + '</tbody>';
 }
 
@@ -918,7 +952,7 @@ function renderChart(R) {
 function buildCopy(kind) {
   const R = state.result, ws = shownWeeks(R);
   let head, body, hl = (i) => ws[i].k === R.kThis;       // hl: 강조할 줄
-  if (kind === 'staff') { const t = staffTable(R); head = t.head; body = t.body; hl = (i) => i === body.length - 1; }
+  if (kind === 'staff' || kind === 'type') { const t = kind === 'staff' ? staffTable(R) : typeTable(R); head = t.head; body = t.body; hl = (i) => i === body.length - 1; }
   else if (kind === 'month') { const t = monthTable(R); head = t.head; body = t.body; hl = (i) => i === body.length - 1; }
   else { head = ['주차', '기간', '환자수', '상담건수', '누적환자', '누적상담']; body = ws.map((w) => [weekLabel(w), weekPeriod(w), w.patients, w.consults, w.cumP, w.cumC]); }
   const cell = 'border:1px solid #000000;padding:4px 8px;text-align:center;';
@@ -932,7 +966,7 @@ function buildCopy(kind) {
 async function copyTable(kind) {
   if (!state.result) return;
   const { html, text } = buildCopy(kind);
-  const done = (msg) => { const el = $({ staff: '#copyStatusStaff', month: '#copyStatusMonth' }[kind] || '#copyStatus'); el.textContent = msg; setTimeout(() => { el.textContent = ''; }, 3000); };
+  const done = (msg) => { const el = $({ staff: '#copyStatusStaff', type: '#copyStatusType', month: '#copyStatusMonth' }[kind] || '#copyStatus'); el.textContent = msg; setTimeout(() => { el.textContent = ''; }, 3000); };
   try {   // 1순위: 최신 클립보드 API
     if (!(navigator.clipboard && window.ClipboardItem)) throw new Error('no clipboard api');
     await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
@@ -970,6 +1004,7 @@ function buildResultSheets(R) {
   sheets.push(['주간표', [['주차', '시작일', '종료일', '환자수', '상담건수', '누적환자', '누적상담']].concat(
     R.weeks.map((w) => ['W' + w.k, isoOf(w.start), isoOf(w.end), w.patients, w.consults, w.cumP, w.cumC]))]);
   if (R.staff.length && state.hasStaff) { const t = staffTable(R); sheets.push(['직원별', [t.head].concat(t.body)]); }
+  if (R.types.length && state.hasType) { const t = typeTable(R); sheets.push(['상담유형별', [t.head].concat(t.body)]); }
   sheets.push(['중복의심', [['유형', '환자', '내용', '해당 행']].concat((state.dupes || []).map((x) => [x.typeName, x.who, x.detail, x.where]))]);
   const mt = monthTable(R); sheets.push(['월간', [mt.head].concat(mt.body)]);
   sheets.push(['제외된 행', [['엑셀 행', '사유', '원본 날짜', '환자']].concat(R.excluded.map((e) => [(state.files.length > 1 ? e.file + ' / ' : '') + e.excelRow, e.reason, e.dateRaw, e.who]))]);
@@ -1019,6 +1054,7 @@ function bind() {
   $('#copyBtn').addEventListener('click', () => copyTable('week'));
   $('#copyMonthBtn').addEventListener('click', () => copyTable('month'));
   $('#copyStaffBtn').addEventListener('click', () => copyTable('staff'));
+  $('#copyTypeBtn').addEventListener('click', () => copyTable('type'));
 }
 
 /* =====================================================================
@@ -1040,6 +1076,7 @@ function analyzeFiles(buffers, meetingISO) {          // 여러 파일을 합쳐
     this: R.this, prev: R.prev, ytd: R.ytd, weeks_nonzero: weeks,
     counts: { loaded: c.loaded, sum: c.sum, no_date: c.noDate, date_error: c.dateError, prev_year: c.prevYear, after: c.after, counted: c.counted, no_patient_no: c.noPatientNo },
     staff: Object.fromEntries(R.staff.map((x) => [x.name, { this: [x.thisP, x.thisC], prev: [x.prevP, x.prevC], ytd: [x.ytdP, x.ytdC] }])),
+    types: Object.fromEntries(R.types.map((x) => [x.name, { this: [x.thisP, x.thisC], prev: [x.prevP, x.prevC], ytd: [x.ytdP, x.ytdC] }])),
     months: Object.fromEntries(R.months.filter((x) => x.patients || x.consults).map((x) => [x.m, [x.patients, x.consults]])),
     dupes: (() => { const d = findDupes(rows), c2 = { A: 0, B: 0, C: 0 }; d.forEach((x) => c2[x.type]++); return c2; })(),
     lastYear: LY.counts.counted > 0 ? { this: LY.this, prev: LY.prev, ytd: LY.ytd } : null,
