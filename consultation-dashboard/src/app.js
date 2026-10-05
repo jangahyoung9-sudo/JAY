@@ -504,6 +504,7 @@ function staffTable(R) {
 }
 function renderStaff(R) {
   const show = state.map.staff >= 0 && R.staff.length > 0;
+  state.hasStaff = show;
   $('#staffCard').hidden = !show;
   if (!show) return;
   const t = staffTable(R);
@@ -570,6 +571,40 @@ async function copyTable(kind) {
   } catch (e) { done('복사에 실패했습니다. 표를 마우스로 선택해 Ctrl+C 해 주세요.'); }
 }
 
+/* --- 결과 엑셀 다운로드: 요약 / 주간표 / 직원별 / 월간 / 제외된 행 시트 (이 PC 안에서 파일 생성) --- */
+function buildResultSheets(R) {
+  const c = R.counts, rng = (a, b) => isoOf(a) + ' ~ ' + isoOf(b);
+  const sheets = [];
+  sheets.push(['요약', [
+    ['병원 상담 통계 주간 요약'], ['회의일', isoOf(R.meetingN)], ['이번주', rng(R.thisStart, R.thisEnd)], ['전주', rng(R.prevStart, R.prevEnd)],
+    ['파일', state.fileName], [],
+    ['지표', '이번주', '전주', '전주 대비 증감', 'YTD (1/1~이번주 끝)', '전주 말 YTD'],
+    ['환자수', R.this.patients, R.prev.patients, R.this.patients - R.prev.patients, R.ytd.patients, R.prevYtd.patients],
+    ['상담건수', R.this.consults, R.prev.consults, R.this.consults - R.prev.consults, R.ytd.consults, R.prevYtd.consults], [],
+    ['데이터 품질'], ['로드 행수', c.loaded], ['집계 반영 행수', c.counted], ['제외 행수 합계', R.excludedTotal],
+    ['  합계/소계 행', c.sum], ['  날짜 없음', c.noDate], ['  날짜 오류', c.dateError], ['  전년도', c.prevYear], ['  회의일 이후', c.after],
+    ['환자번호 없는 행수', c.noPatientNo], [],
+    ['YTD 환자수는 주별 환자수의 합입니다(주 간 중복제거 없음).'],
+  ]]);
+  sheets.push(['주간표', [['주차', '시작일', '종료일', '환자수', '상담건수', '누적환자', '누적상담']].concat(
+    R.weeks.map((w) => ['W' + w.k, isoOf(w.start), isoOf(w.end), w.patients, w.consults, w.cumP, w.cumC]))]);
+  if (R.staff.length && state.hasStaff) { const t = staffTable(R); sheets.push(['직원별', [t.head].concat(t.body)]); }
+  const mt = monthTable(R); sheets.push(['월간', [mt.head].concat(mt.body)]);
+  sheets.push(['제외된 행', [['엑셀 행', '사유', '원본 날짜', '환자']].concat(R.excluded.map((e) => [e.excelRow, e.reason, e.dateRaw, e.who]))]);
+  return sheets;
+}
+function downloadResult() {
+  if (!state.result) return;
+  const wb = XLSX.utils.book_new();
+  buildResultSheets(state.result).forEach(([name, aoa]) => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name));
+  const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = '상담통계_회의일' + isoOf(state.result.meetingN) + '.xlsx';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
 /* --- 이벤트 연결 --- */
 function bind() {
   const dz = $('#dropzone'), fi = $('#fileInput');
@@ -591,6 +626,7 @@ function bind() {
   $('#prevWeekBtn').addEventListener('click', () => setMeeting(state.meetingN === null ? nearestWednesday(todayN()) - 7 : state.meetingN - 7));
   $('#nextWeekBtn').addEventListener('click', () => setMeeting(state.meetingN === null ? nearestWednesday(todayN()) + 7 : state.meetingN + 7));
   $('#rangeSelect').addEventListener('change', () => { if (state.result) { renderTable(state.result); renderChart(state.result); } });
+  $('#downloadBtn').addEventListener('click', downloadResult);
   $('#printBtn').addEventListener('click', () => window.print());
   $('#copyBtn').addEventListener('click', () => copyTable('week'));
   $('#copyMonthBtn').addEventListener('click', () => copyTable('month'));

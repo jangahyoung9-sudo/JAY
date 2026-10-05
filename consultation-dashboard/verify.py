@@ -146,6 +146,20 @@ if sync_playwright:
         pdf = page.pdf(prefer_css_page_size=True, print_background=True)
         check("PDF 생성(%PDF, 내용 있음)", pdf[:5] == b"%PDF-" and len(pdf) > 20000, True)
         page.emulate_media(media="screen")
+        # --- 결과 엑셀 다운로드(Phase 3): 받은 파일을 openpyxl로 열어 정답지와 비교 ---
+        import openpyxl, tempfile
+        with page.expect_download() as dl: page.click("#downloadBtn")
+        out = pathlib.Path(tempfile.gettempdir()) / "verify_result.xlsx"; dl.value.save_as(out)
+        wbx = openpyxl.load_workbook(out, data_only=True)
+        rows = {r[0]: r[1:] for r in wbx["요약"].iter_rows(values_only=True) if r and r[0]}
+        e0 = KEY["samples"]["sample1_normal.xlsx"]["scenarios"][0]["expect"]
+        d = lambda k: e0["this"][k] - e0["prev"][k]
+        check("엑셀 저장: 요약 시트 이번주·전주·증감", [list(rows["환자수"][:3]), list(rows["상담건수"][:3])],
+              [[e0["this"]["patients"], e0["prev"]["patients"], d("patients")], [e0["this"]["consults"], e0["prev"]["consults"], d("consults")]])
+        check("엑셀 저장: YTD 환자/상담", [rows["환자수"][3], rows["상담건수"][3]], [e0["ytd"]["patients"], e0["ytd"]["consults"]])
+        wk = {r[0]: r[3:5] for r in wbx["주간표"].iter_rows(min_row=2, values_only=True)}
+        check("엑셀 저장: 주간표(0 아닌 주)", {k[1:]: list(v) for k, v in wk.items() if v[0] or v[1]}, e0["weeks_nonzero"])
+        check("엑셀 저장: 시트 구성", wbx.sheetnames, ["요약", "주간표", "직원별", "월간", "제외된 행"])
         # --- 컬럼 매핑 기억(Phase 2): 자동 감지 실패 → 수동 지정 → 새로고침 후 자동 적용 → 지우기 ---
         s4 = str(ROOT / "test-data" / "sample4_custom_headers.xlsx")
         kpis = lambda: page.eval_on_selector_all(".kpi .num", "els => els.map(e => parseInt(e.textContent))")
