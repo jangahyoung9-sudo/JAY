@@ -62,3 +62,24 @@ table.plain th,table.plain td{border-bottom:1px solid var(--line);padding:4px 8p
 .inline{font-size:13px;color:var(--sub)}
 footer{text-align:center;padding:12px}
 @media(max-width:800px){.kpis,.quality{grid-template-columns:repeat(2,1fr)}.kpi .num{font-size:40px}}
+
+.toolbar{display:flex;justify-content:flex-end;gap:8px;margin:6px 0}
+.print-only{display:none}
+/* ---- 인쇄 / PDF 저장: A4 가로, 조작 버튼은 숨기고 표·차트는 잘리지 않게 ---- */
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  html,body{background:#fff!important;font-size:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .top .meeting,.top p.privacy,.drop,.filebar,.notice,#mapPanel,#excludedPanel,.toolbar,button,.inline,.panel,footer,#copyStatus,#copyStatusStaff,#copyStatusMonth{display:none!important}
+  .top{border:none;padding:0 0 6px}
+  h1{font-size:18px}
+  .print-only{display:block;font-weight:600;margin:0 0 8px;font-size:12px}
+  main{max-width:none;padding:0}
+  .card,.kpi,.q,.quality,.warn{break-inside:avoid}
+  .card{margin:8px 0;padding:8px 10px}
+  .kpis{margin:8px 0;gap:8px}
+  .kpi .num{font-size:38px}
+  .scroll,.scroll.tall{max-height:none!important;overflow:visible!important}
+  .chart-box{height:240px}
+  table.grid th{position:static}
+  #monthCard,#staffCard,#typeCard{break-before:page}
+}

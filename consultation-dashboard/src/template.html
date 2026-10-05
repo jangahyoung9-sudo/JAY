@@ -27,6 +27,7 @@
 </header>
 
 <main>
+  <div id="printHead" class="print-only"></div>
   <!-- 업로드 영역 -->
   <section id="dropzone" class="drop" tabindex="0" role="button" aria-label="엑셀 파일 올리기">
     <div class="drop-title">📄 상담 엑셀 파일을 여기에 끌어다 놓으세요</div>
@@ -58,6 +59,7 @@
   </details>
 
   <div id="result" hidden>
+    <div class="toolbar"><button type="button" id="printBtn">🖨 인쇄 / PDF 저장</button></div>
     <!-- 경고/품질 배너 -->
     <div id="warnBanner" class="warn" role="status" hidden></div>
     <section class="quality" aria-label="데이터 품질">

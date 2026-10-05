@@ -137,6 +137,15 @@ if sync_playwright:
         nums = page.eval_on_selector_all(".kpi .num", "els => els.map(e => parseInt(e.textContent))")
         check("화면 KPI 4개 (환자3·상담5·YTD 5·8)", nums, [3, 5, 5, 8])
         check("화면 주간 표 행 존재", page.locator("#weekTable tr.cur").count(), 1)
+        # --- 인쇄/PDF(Phase 3): 인쇄 화면에서 조작 버튼은 숨고 핵심 내용은 보이는지, PDF가 만들어지는지 ---
+        page.set_input_files("#fileInput", str(ROOT / "test-data" / "sample1_normal.xlsx")); setm0 = page.fill("#meetingDate", "2026-10-07"); page.dispatch_event("#meetingDate", "change")
+        page.emulate_media(media="print")
+        vis = {k: page.is_visible(k) for k in ["#printHead", "#kpis", "#chartBox", "#weekTable", "#printBtn", "#dropzone", "#meetingDate"]}
+        check("인쇄 화면: 머리글·KPI·차트·표 보임 / 버튼·업로드·회의일 입력 숨김", vis,
+              {"#printHead": True, "#kpis": True, "#chartBox": True, "#weekTable": True, "#printBtn": False, "#dropzone": False, "#meetingDate": False})
+        pdf = page.pdf(prefer_css_page_size=True, print_background=True)
+        check("PDF 생성(%PDF, 내용 있음)", pdf[:5] == b"%PDF-" and len(pdf) > 20000, True)
+        page.emulate_media(media="screen")
         # --- 컬럼 매핑 기억(Phase 2): 자동 감지 실패 → 수동 지정 → 새로고침 후 자동 적용 → 지우기 ---
         s4 = str(ROOT / "test-data" / "sample4_custom_headers.xlsx")
         kpis = lambda: page.eval_on_selector_all(".kpi .num", "els => els.map(e => parseInt(e.textContent))")

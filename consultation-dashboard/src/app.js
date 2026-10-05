@@ -429,6 +429,10 @@ function render() {
   const R = analyze(state.rows, state.meetingN);
   state.result = R;
   $('#result').hidden = false;
+  // 인쇄용 머리글(화면에서는 숨김, 인쇄/PDF에서만 보임)
+  const nowD = new Date();
+  $('#printHead').textContent = '병원 상담 통계 주간 보고 · 회의일 ' + isoOf(R.meetingN) + '(' + WD[dowOf(R.meetingN)] + ') · 이번주 ' + mdwOf(R.thisStart) + ' ~ ' + mdwOf(R.thisEnd) +
+    ' · 파일 ' + state.fileName + ' · 출력 ' + nowD.getFullYear() + '-' + pad2(nowD.getMonth() + 1) + '-' + pad2(nowD.getDate());
   const c = R.counts;
 
   // 경고/품질 배너
@@ -587,6 +591,7 @@ function bind() {
   $('#prevWeekBtn').addEventListener('click', () => setMeeting(state.meetingN === null ? nearestWednesday(todayN()) - 7 : state.meetingN - 7));
   $('#nextWeekBtn').addEventListener('click', () => setMeeting(state.meetingN === null ? nearestWednesday(todayN()) + 7 : state.meetingN + 7));
   $('#rangeSelect').addEventListener('change', () => { if (state.result) { renderTable(state.result); renderChart(state.result); } });
+  $('#printBtn').addEventListener('click', () => window.print());
   $('#copyBtn').addEventListener('click', () => copyTable('week'));
   $('#copyMonthBtn').addEventListener('click', () => copyTable('month'));
   $('#copyStaffBtn').addEventListener('click', () => copyTable('staff'));
