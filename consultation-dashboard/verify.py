@@ -236,5 +236,21 @@ if sync_playwright:
         check("기억④ 설정 지우면 다시 자동 감지 실패", page.is_hidden("#result"), True)
         b.close()
 
+# ---------------- ③ 시연 자료(가상 1,300여 행) 교차검증: 정답지 없이 '서로 독립인 두 구현'끼리 비교 ----------------
+DEMO = ROOT / "test-data" / "demo_hospital_2026.xlsx"
+if DEMO.exists() and sync_playwright:
+    print("\n=== ③ 시연 자료 교차검증 (pandas  vs  대시보드, 정답지 없이 서로 비교) ===")
+    b64 = base64.b64encode(DEMO.read_bytes()).decode()
+    with sync_playwright() as p:
+        b = p.chromium.launch(**({"executable_path": str(exe)} if exe else {})); pg = b.new_page()
+        pg.goto((ROOT / "dashboard.html").resolve().as_uri())
+        for m in ["2026-01-07", "2026-01-14", "2026-03-04", "2026-06-17", "2026-09-30", "2026-10-07"]:
+            got = pg.evaluate("""([b64, m]) => { const bin = atob(b64); const u = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return window.DashboardAPI.analyzeWorkbook(u.buffer, m); }""", [b64, m])
+            exp = compute(DEMO, m)
+            for k in ("this", "prev", "ytd", "weeks_nonzero", "counts", "staff", "types", "months", "dupes"):
+                check(f"시연자료 {m} {k}", got[k], exp[k])
+        b.close()
+
 print(f"\n결과: {total - fails}/{total} PASS" + ("  ✅ 전부 통과" if fails == 0 else f"  ❌ {fails}개 FAIL"))
 sys.exit(1 if fails else 0)

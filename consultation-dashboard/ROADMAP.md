@@ -10,6 +10,8 @@
 **통과한 테스트**: T1~T9 (샘플 3종 × 회의일 시나리오, `python verify.py` 125/125 PASS, pandas 독립 계산 + 헤드리스 브라우저 비교),
 T10(인터넷 차단 상태에서 외부 요청 0건·오류 0건), T11은 **사람이 직접 확인 필요**(PPT에 붙여넣기 — 아래 시연 순서 참고. 복사 데이터에 HTML 표+텍스트가 함께 들어가는 것까지만 자동 확인함).
 
+**시연 자료**: `python make_demo.py` → `test-data/demo_hospital_2026.xlsx` (가상 1,343행: 제목줄·월별 소계·텍스트 날짜·번호 누락·오타·전년도 포함). verify.py ③에서 pandas와 교차검증.
+
 **파일 구조**: `dashboard.html`(최종 결과물) · `src/`(편집용 원본) · `vendor/`(SheetJS·Chart.js) · `build.py`(src+vendor → dashboard.html) ·
 `make_samples.py`(샘플·정답지 생성) · `verify.py`(검증).
 수정은 `src/`에서 하고 `python build.py`로 다시 합칩니다.

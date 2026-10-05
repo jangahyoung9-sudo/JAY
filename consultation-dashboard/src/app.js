@@ -583,7 +583,7 @@ function monthTable(R) {
   const body = R.months.map((x, i) => {
     const d = i === 0 ? null : x.consults - R.months[i - 1].consults;
     return [x.m + '월' + (x.partial ? ' (진행 중)' : ''), mdOf(x.start) + ' ~ ' + mdOf(x.end), x.patients, x.consults, x.cumC,
-      d === null ? '' : d === 0 ? '―' : (d > 0 ? '▲ ' : '▼ ') + Math.abs(d)];
+      d === null ? '' : x.partial ? '(집계 중)' : d === 0 ? '―' : (d > 0 ? '▲ ' : '▼ ') + Math.abs(d)];   // 진행 중인 달은 전체 달과 비교하지 않음
   });
   return { head, body };
 }
